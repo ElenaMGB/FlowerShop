@@ -80,24 +80,24 @@ WSGI_APPLICATION = 'FlowersDelivery.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': env('DB_NAME', default='flowerdelivery'),
-        'USER': env('DB_USER', default='flower_user'),
-        'PASSWORD': env('DB_PASSWORD', default='strongpassword'),
-        'HOST': env('DB_HOST', default='localhost'),
-        'PORT': env.int('DB_PORT', default=3306),
-        'OPTIONS': {'charset': 'utf8mb4'},
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': env('DB_NAME', default='flowerdelivery'),
+#         'USER': env('DB_USER', default='flower_user'),
+#         'PASSWORD': env('DB_PASSWORD', default='strongpassword'),
+#         'HOST': env('DB_HOST', default='localhost'),
+#         'PORT': env.int('DB_PORT', default=3306),
+#         'OPTIONS': {'charset': 'utf8mb4'},
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

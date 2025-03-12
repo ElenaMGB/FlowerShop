@@ -6,7 +6,7 @@
 
 {% block content %}
     <div class="product-detail">
-        {% if car.image %}
+        {% if product.image %}
             <img src="{{ product.image.url }}" alt="{{ product.name }}">
         {% else %}
             <img src="{% static 'img/product_placeholder.png' %}" alt="Без изображения">
@@ -14,7 +14,7 @@
         <h2>{{ product.name }}</h2>
         <p>{{ product.description }}</p>
         <p class="price">{{ product.price }} руб.</p>
-        <a href="{% url 'shop/add_to_cart' product.id %}" class="btn">В корзину</a>
-        <a href="{% url 'shop/index' %}" class="btn">Назад</a>
+        <a href="{% url 'add_to_cart' product.id %}" class="btn">В корзину</a>
+        <a href="{% url 'index' %}" class="btn">Назад</a>
     </div>
 {% endblock %}

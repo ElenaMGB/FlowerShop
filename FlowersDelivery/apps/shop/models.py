@@ -34,7 +34,7 @@ class CartItem(models.Model):
 
 
 class Order(models.Model):
-    user = models.ForeignKey(User,on_delete=models.CASCADE,verbose_name='Пользователь')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Пользователь')
     products = models.ManyToManyField(Product, through='OrderItem', verbose_name='Цветы')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата заказа')
     address = models.TextField()
@@ -49,9 +49,11 @@ class Order(models.Model):
     )
     order_key = models.CharField(max_length=20, unique=True, verbose_name='Ключ заказа')
     payment_status = models.CharField(max_length=50, default='pending')
+    # Добавляем поле total_price
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Общая сумма')
 
     def __str__(self):
-        return f"Заказ {self.id} ({self.user.full_name})"
+        return f"Заказ {self.id} ({self.user.username})"
 
 
 class OrderItem(models.Model):
@@ -64,16 +66,39 @@ class OrderItem(models.Model):
         return f"{self.product.name} x {self.quantity}"
 
 
+# @receiver(post_save, sender=Order)
+# def notify_bot_about_status_change(sender, instance, **kwargs):
+#     """Отправляет уведомление боту при изменении статуса заказа."""
+#     # Проверяем, изменился ли статус
+#     if instance._status_before_update != instance.status:
+#         data = {
+#             'telegram_id': 1367180406,  # ID пользователя из Telegram
+#             'order_id': instance.id,
+#             'new_status': instance.status,
+#             'total_price': float(instance.total_price),
+#         }
+#         try:
+#             # Отправка POST-запроса к вашему боту
+#             response = requests.post('http://127.0.0.1:8080/notify/', json=data)
+#             response.raise_for_status()
+#         except requests.RequestException as e:
+#             # Логируем ошибки
+#             print(f"Ошибка при отправке уведомления: {e}")
+
+
 @receiver(post_save, sender=Order)
-def notify_bot_about_status_change(sender, instance, **kwargs):
-    """Отправляет уведомление боту при изменении статуса заказа."""
-    # Проверяем, изменился ли статус
-    if instance._status_before_update != instance.status:
+def notify_bot_about_status_change(sender, instance, created, **kwargs):
+    """Отправляет уведомление боту при создании заказа."""
+    if created:  # Проверяем, что заказ только что создан
+        # Вычисляем total_price из элементов заказа
+        order_items = OrderItem.objects.filter(order=instance)
+        total_price = sum(item.price * item.quantity for item in order_items)
+
         data = {
             'telegram_id': 1367180406,  # ID пользователя из Telegram
             'order_id': instance.id,
             'new_status': instance.status,
-            'total_price': float(instance.total_price),
+            'total_price': float(total_price),
         }
         try:
             # Отправка POST-запроса к вашему боту

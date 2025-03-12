@@ -1,10 +1,34 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Пожалуйста оплатите</title>
-</head>
-<body>
+{% extends 'shop/base.html' %}
+{% load static %}
 
-</body>
-</html>
+{% block title %}Подтверждение заказа{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">Заказ успешно оформлен!</h4>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                    </div>
+                    
+                    <p class="lead text-center">Спасибо за ваш заказ! Мы уже начали его обработку.</p>
+                    
+                    <div class="alert alert-info">
+                        <p>Информация о статусе заказа будет отправлена на вашу электронную почту.</p>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <a href="{% url 'index' %}" class="btn btn-primary">Вернуться на главную</a>
+                        <a href="{% url 'catalog' %}" class="btn btn-outline-primary ml-2">Продолжить покупки</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

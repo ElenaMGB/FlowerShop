@@ -1,45 +1,75 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Оформление заказа</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">Доставка цветов</a>
-        <div class="collapse navbar-collapse">
-            <ul class="navbar-nav mr-auto">
-                <li class="nav-item"><a class="nav-link" href="index.html">Главная</a></li>
-                <li class="nav-item"><a class="nav-link" href="catalog.html">Каталог</a></li>
-                <li class="nav-item active"><a class="nav-link" href="order.html">Оформление заказа</a></li>
-                <li class="nav-item"><a class="nav-link" href="profile.html">Личный кабинет</a></li>
-            </ul>
+{% extends 'shop/base.html' %}
+{% load static %}
+
+{% block title %}Корзина{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Корзина</h1>
+    
+    {% if items %}
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">Ваши товары</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Товар</th>
+                                <th>Цена</th>
+                                <th>Количество</th>
+                                <th>Сумма</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if item.product.image %}
+                                            <img src="{{ item.product.image.url }}" style="width: 50px; height: 50px; object-fit: cover;" class="mr-2">
+                                        {% endif %}
+                                        <a href="{% url 'product_detail' item.product.id %}">{{ item.product.name }}</a>
+                                    </div>
+                                </td>
+                                <td>{{ item.product.price }} руб.</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <a href="#" class="btn btn-sm btn-light">-</a>
+                                        <span class="mx-2">{{ item.quantity }}</span>
+                                        <a href="{% url 'shop/add_to_cart' item.product.id %}" class="btn btn-sm btn-light">+</a>
+                                    </div>
+                                </td>
+                                <td>{{ item.quantity|multiply:item.product.price }} руб.</td>
+                                <td>
+                                    <a href="{% url 'shop/remove_from_cart' item.product.id %}" class="btn btn-sm btn-danger">Удалить</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-light">
+                                <td colspan="3" class="text-right font-weight-bold">Итого:</td>
+                                <td colspan="2" class="font-weight-bold">
+                                    {% widthratio total_price 1 1 %} руб.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-    </nav>
-
-    <div class="container mt-5">
-        <h1>Оформление заказа</h1>
-        <form>
-            <div class="form-group">
-                <label for="name">Имя</label>
-                <input type="text" class="form-control" id="name" required>
-            </div>
-            <div class="form-group">
-                <label for="address">Адрес доставки</label>
-                <input type="text" class="form-control" id="address" required>
-            </div>
-            <div class="form-group">
-                <label for="phone">Телефон</label>
-                <input type="tel" class="form-control" id="phone" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Оформить заказ</button>
-        </form>
-    </div>
-
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-</body>
-</html>
+        
+        <div class="text-right">
+            <a href="{% url 'shop/catalog' %}" class="btn btn-outline-secondary">Продолжить покупки</a>
+            <a href="{% url 'shop/checkout' %}" class="btn btn-success">Оформить заказ</a>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <p>Ваша корзина пуста.</p>
+            <a href="{% url 'shop/catalog' %}" class="btn btn-primary">Перейти в каталог</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

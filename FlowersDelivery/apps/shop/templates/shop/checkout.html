@@ -1,10 +1,118 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Выйти</title>
-</head>
-<body>
+{% extends 'shop/base.html' %}
+{% load static %}
+{% load shop_filters %}
 
-</body>
-</html>
+{% block title %}Оформление заказа{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Оформление заказа</h1>
+    
+    {% if items %}
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Данные для доставки</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" action="{% url 'shop/checkout' %}">
+                            {% csrf_token %}
+                            
+                            <div class="form-group">
+                                <label for="name">ФИО*</label>
+                                <input type="text" class="form-control" id="name" name="name" required 
+                                       value="{% if user.is_authenticated and user.profile %}{{ user.profile.full_name }}{% endif %}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="email">Email*</label>
+                                <input type="email" class="form-control" id="email" name="email" required
+                                       value="{% if user.is_authenticated %}{{ user.email }}{% endif %}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="phone">Телефон*</label>
+                                <input type="tel" class="form-control" id="phone" name="phone" required
+                                       value="{% if user.is_authenticated and user.profile %}{{ user.profile.phone }}{% endif %}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="address">Адрес доставки*</label>
+                                <textarea class="form-control" id="address" name="address" rows="3" required>{% if user.is_authenticated and user.profile %}{{ user.profile.address }}{% endif %}</textarea>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="delivery_date">Дата доставки*</label>
+                                <input type="date" class="form-control" id="delivery_date" name="delivery_date" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="delivery_time">Время доставки*</label>
+                                <select class="form-control" id="delivery_time" name="delivery_time" required>
+                                    <option value="">Выберите время</option>
+                                    <option value="morning">Утро (9:00 - 12:00)</option>
+                                    <option value="afternoon">День (12:00 - 18:00)</option>
+                                    <option value="evening">Вечер (18:00 - 21:00)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="payment_method">Способ оплаты*</label>
+                                <select class="form-control" id="payment_method" name="payment_method" required>
+                                    <option value="card">Банковская карта</option>
+                                    <option value="cash">Наличными при получении</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="comment">Комментарий к заказу</label>
+                                <textarea class="form-control" id="comment" name="comment" rows="2"></textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-success btn-block">Подтвердить заказ</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Ваш заказ</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for item in items %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <div>
+                                    <span>{{ item.product.name }}</span>
+                                    <small class="text-muted d-block">{{ item.quantity }} шт.</small>
+                                </div>
+                                <span>{{ item.quantity|multiply:item.product.price }} руб.</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <div class="d-flex justify-content-between mt-3">
+                            <span>Доставка:</span>
+                            <span>300 руб.</span>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="d-flex justify-content-between font-weight-bold">
+                            <span>Итого:</span>
+                            <span>{{ total_price|add:300 }} руб.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-warning">
+            Ваша корзина пуста. <a href="{% url 'catalog' %}">Перейти в каталог</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

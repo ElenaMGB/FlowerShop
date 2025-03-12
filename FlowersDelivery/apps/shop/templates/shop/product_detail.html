@@ -1,10 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends 'shop/base.html' %}
 
-</body>
-</html>
+{% load static %}
+
+{% block title %}{{ product.name }} - Магазин цветов{% endblock %}
+
+{% block content %}
+    <div class="product-detail">
+        {% if car.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}">
+        {% else %}
+            <img src="{% static 'img/product_placeholder.png' %}" alt="Без изображения">
+        {% endif %}
+        <h2>{{ product.name }}</h2>
+        <p>{{ product.description }}</p>
+        <p class="price">{{ product.price }} руб.</p>
+        <a href="{% url 'shop/add_to_cart' product.id %}" class="btn">В корзину</a>
+        <a href="{% url 'shop/index' %}" class="btn">Назад</a>
+    </div>
+{% endblock %}

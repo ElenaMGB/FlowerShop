@@ -117,6 +117,10 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
+LOGIN_REDIRECT_URL = '/'  # Перенаправление на главную страницу после входа
+# Устанавливаем путь к странице входа
+LOGIN_URL = '/login/'
+
 TIME_ZONE = 'UTC'
 
 USE_I18N = True

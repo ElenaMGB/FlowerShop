@@ -1,66 +1,84 @@
-{% extends 'base.html' %}
-{% load static %}
+{% extends 'shop/base.html' %}
+
+{% block title %}Каталог цветов{% endblock %}
 
 {% block content %}
+<div class="container mt-4">
+    <h1>Каталог цветов</h1>
 
-Каталог цветов
-{% if products %} {% for product in products %}
-{% if product.image %}{{ product.name }}{% else %}Нет изображения{% endif %}
-{{ product.name }}
-Цена: {{ product.price }} руб.
+    <!-- Форма поиска -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <form method="get" action="{% url 'catalog' %}">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" placeholder="Поиск цветов..." value="{{ request.GET.search }}">
+                    <button class="btn btn-primary" type="submit">Найти</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-{%'product_detail'%}
-{%'add_to_cart'%}
+    <!-- Результаты -->
+    <div class="row">
+        {% if products %}
+            {% for product in products %}
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
+                        {% else %}
+                            <div class="card-img-top bg-light text-center py-5">Нет изображения</div>
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title">{{ product.name }}</h5>
+                            <p class="card-text">{{ product.price }} ₽</p>
+                            <a href="{% url 'product_detail' product.id %}" class="btn btn-outline-primary">Подробнее</a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <p>По вашему запросу ничего не найдено</p>
+            </div>
+        {% endif %}
+    </div>
 
-{% endfor %} {% else %}
-Товары не найдены
+    <!-- Пагинация -->
+    {% if products.has_other_pages %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if products.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ products.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">Предыдущая</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Предыдущая</span>
+                </li>
+            {% endif %}
 
-{% endif %}
+            {% for num in products.paginator.page_range %}
+                {% if products.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if products.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ products.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">Следующая</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Следующая</span>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
 {% endblock %}
-{% block extra_js %}
-
-{% endblock %}
-
-<!--<!DOCTYPE html>-->
-<!--<html lang="ru">-->
-<!--<head>-->
-<!--    <meta charset="UTF-8">-->
-<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">-->
-<!--    <title>Каталог цветов</title>-->
-<!--    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">-->
-<!--</head>-->
-<!--<body>-->
-<!--    <nav class="navbar navbar-expand-lg navbar-light bg-light">-->
-<!--        <a class="navbar-brand" href="#">Доставка цветов</a>-->
-<!--        <div class="collapse navbar-collapse">-->
-<!--            <ul class="navbar-nav mr-auto">-->
-<!--                <li class="nav-item"><a class="nav-link" href="index.html">Главная</a></li>-->
-<!--                <li class="nav-item active"><a class="nav-link" href="catalog.html">Каталог</a></li>-->
-<!--                <li class="nav-item"><a class="nav-link" href="order.html">Оформление заказа</a></li>-->
-<!--                <li class="nav-item"><a class="nav-link" href="profile.html">Личный кабинет</a></li>-->
-<!--            </ul>-->
-<!--        </div>-->
-<!--    </nav>-->
-
-<!--    <div class="container mt-5">-->
-<!--        <h1>Каталог цветов</h1>-->
-<!--        <div class="row">-->
-<!--            <div class="col-md-4">-->
-<!--                <div class="card mb-4 shadow-sm">-->
-<!--                    <img src="..." class="card-img-top" alt="Роза">-->
-<!--                    <div class="card-body">-->
-<!--                        <h5 class="card-title">Роза</h5>-->
-<!--                        <p class="card-text">Цена: 500 руб.</p>-->
-<!--                        <a href="order.html" class="btn btn-primary">Добавить в корзину</a>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--            &lt;!&ndash; Добавьте больше товаров аналогично &ndash;&gt;-->
-<!--        </div>-->
-<!--    </div>-->
-
-<!--    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>-->
-<!--    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>-->
-<!--    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>-->
-<!--</body>-->
-<!--</html>-->

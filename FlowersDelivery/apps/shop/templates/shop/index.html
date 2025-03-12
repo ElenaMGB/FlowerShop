@@ -1,32 +1,78 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Доставка цветов</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">Доставка цветов</a>
-        <div class="collapse navbar-collapse">
-            <ul class="navbar-nav mr-auto">
-                <li class="nav-item active"><a class="nav-link" href="index.html">Главная</a></li>
-                <li class="nav-item"><a class="nav-link" href="catalog.html">Каталог</a></li>
-                <li class="nav-item"><a class="nav-link" href="order.html">Оформление заказа</a></li>
-                <li class="nav-item"><a class="nav-link" href="profile.html">Личный кабинет</a></li>
-            </ul>
-        </div>
-    </nav>
+{% extends 'shop/base.html' %}
+{% load static %}
 
-    <div class="container mt-5">
-        <h1>Добро пожаловать на сайт доставки цветов!</h1>
-        <p>Здесь вы можете заказать букеты на любой вкус.</p>
-        <a href="catalog.html" class="btn btn-primary">Заказать цветы</a>
+{% block content %}
+<div class="container mt-5">
+    <div class="jumbotron">
+        <h1 class="display-4">Добро пожаловать на сайт доставки цветов!</h1>
+        <p class="lead">Здесь вы можете заказать букеты на любой вкус.</p>
+        <hr class="my-4">
+        <p>Выбирайте из нашего широкого ассортимента свежих цветов и букетов.</p>
+        <a href="{% url 'catalog' %}" class="btn btn-primary btn-lg">Заказать цветы</a>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-</body>
-</html>
+    <div class="row mt-5">
+        <div class="col-md-4">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body text-center">
+                    <h3><i class="fas fa-truck"></i> Быстрая доставка</h3>
+                    <p>Доставим ваш заказ в течение 2 часов по городу</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body text-center">
+                    <h3><i class="fas fa-flower"></i> Свежие цветы</h3>
+                    <p>Мы гарантируем свежесть всех наших букетов</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-body text-center">
+                    <h3><i class="fas fa-gift"></i> Индивидуальный подход</h3>
+                    <p>Создадим букет по вашему желанию и бюджету</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!--    <div class="text-center mt-5">-->
+<!--        <h2>Популярные букеты</h2>-->
+<!--        <div class="row">-->
+<!--            {% if products %}-->
+<!--                {% for product in products|slice:":3" %}-->
+<!--                    <div class="col-md-4">-->
+<!--                        <div class="card mb-4 shadow-sm">-->
+<!--                            {% if product.image %}-->
+<!--                                <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">-->
+<!--                            {% else %}-->
+<!--                                <img src="{% static 'images/no-image.jpg' %}" class="card-img-top" alt="Нет изображения">-->
+<!--                            {% endif %}-->
+<!--                            <div class="card-body">-->
+<!--                                <h5 class="card-title">{{ product.name }}</h5>-->
+<!--                                <p class="card-text">Цена: {{ product.price }} руб.</p>-->
+<!--                                <a href="{% url 'product_detail' product.id %}" class="btn btn-primary">Подробнее</a>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                    </div>-->
+<!--                {% endfor %}-->
+<!--            {% else %}-->
+<!--                <div class="col-12">-->
+<!--                    <p>Товары временно недоступны</p>-->
+<!--                </div>-->
+<!--            {% endif %}-->
+<!--        </div>-->
+<!--        <a href="{% url 'index' %}" class="btn btn-outline-primary mt-3">Смотреть все букеты</a>-->
+<!--    </div>-->
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+{% endblock %}

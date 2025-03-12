@@ -1,35 +1,98 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Личный кабинет</title>
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="#">Доставка цветов</a>
-        <div class="collapse navbar-collapse">
-            <ul class="navbar-nav mr-auto">
-                <li class="nav-item"><a class="nav-link" href="index.html">Главная</a></li>
-                <li class="nav-item"><a class="nav-link" href="catalog.html">Каталог</a></li>
-                <li class="nav-item"><a class="nav-link" href="order.html">Оформление заказа</a></li>
-                <li class="nav-item active"><a class="nav-link" href="profile.html">Личный кабинет</a></li>
-            </ul>
+{% extends 'shop/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>Личный кабинет</h1>
+
+    {% if user.is_authenticated %}
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Информация о пользователе</h2>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Имя пользователя:</strong> {{ user.username }}</p>
+                        <p><strong>Email:</strong> {{ user.email }}</p>
+                        {% if user.profile %}
+                            <p><strong>ФИО:</strong> {{ user.profile.full_name|default:"Не указано" }}</p>
+                            <p><strong>Телефон:</strong> {{ user.profile.phone|default:"Не указано" }}</p>
+                            <p><strong>Адрес:</strong> {{ user.profile.address|default:"Не указано" }}</p>
+                        {% endif %}
+                        <a href="#" class="btn btn-primary">Редактировать профиль</a>
+                    </div>
+                </div>
+            </div>
         </div>
-    </nav>
 
-    <div class="container mt-5">
-        <h1>Личный кабинет</h1>
         <h2>История заказов</h2>
-        <ul class="list-group">
-            <li class="list-group-item">Заказ №1: Роза - 500 руб.</li>
-            <!-- Добавьте больше заказов аналогично -->
-        </ul>
-    </div>
+        {% if user.shop_orders.all %}
+            <div class="list-group">
+                {% for order in user.shop_orders.all %}
+                    <div class="list-group-item">
+                        <h5>Заказ #{{ order.id }} от {{ order.created_at|date:"d.m.Y" }}</h5>
+                        <p><strong>Статус оплаты:</strong> {{ order.payment_status }}</p>
+                        <p><strong>Адрес доставки:</strong> {{ order.address }}</p>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-</body>
-</html>
+                        <h6>Товары:</h6>
+                        <ul class="list-unstyled">
+                            {% for item in order.items.all %}
+                                <li>{{ item.product.name }} - {{ item.quantity }} шт. x {{ item.price }} руб. = {{ item.quantity|multiply:item.price }} руб.</li>
+                            {% endfor %}
+                        </ul>
+                        <p class="text-right font-weight-bold">Итого: {{ order.items.all|total_price }} руб.</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>У вас пока нет заказов.</p>
+        {% endif %}
+    {% else %}
+        <div class="alert alert-warning">
+            Для просмотра личного кабинета необходимо <a href="{% url 'login' %}">войти</a> в аккаунт.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+{% endblock %}
+<!--<!DOCTYPE html>-->
+<!--<html lang="ru">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8">-->
+<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+<!--    <title>Личный кабинет</title>-->
+<!--    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">-->
+<!--</head>-->
+<!--<body>-->
+<!--    <nav class="navbar navbar-expand-lg navbar-light bg-light">-->
+<!--        <a class="navbar-brand" href="#">Доставка цветов</a>-->
+<!--        <div class="collapse navbar-collapse">-->
+<!--            <ul class="navbar-nav mr-auto">-->
+<!--                <li class="nav-item"><a class="nav-link" href="index.html">Главная</a></li>-->
+<!--                <li class="nav-item"><a class="nav-link" href="catalog.html">Каталог</a></li>-->
+<!--                <li class="nav-item"><a class="nav-link" href="order.html">Оформление заказа</a></li>-->
+<!--                <li class="nav-item active"><a class="nav-link" href="profile.html">Личный кабинет</a></li>-->
+<!--            </ul>-->
+<!--        </div>-->
+<!--    </nav>-->
+
+<!--    <div class="container mt-5">-->
+<!--        <h1>Личный кабинет</h1>-->
+<!--        <h2>История заказов</h2>-->
+<!--        <ul class="list-group">-->
+<!--            <li class="list-group-item">Заказ №1: Роза - 500 руб.</li>-->
+<!--            &lt;!&ndash; Добавьте больше заказов аналогично &ndash;&gt;-->
+<!--        </ul>-->
+<!--    </div>-->
+
+<!--    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>-->
+<!--    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>-->
+<!--    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>-->
+<!--</body>-->
+<!--</html>-->

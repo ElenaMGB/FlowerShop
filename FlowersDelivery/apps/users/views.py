@@ -1,10 +1,11 @@
 from decimal import Decimal
 from django.shortcuts import render, redirect
-from .models import Product, Order
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.core.paginator import Paginator
+
+from .models import Product, Order
 
 def register(request):
     if request.method == 'POST':
@@ -17,12 +18,16 @@ def register(request):
         form = UserCreationForm()
     return render(request, 'shop/register.html', {'form': form})
 
+def home(request):
+
+    return render(request, 'users/index.html', {'products': products_list})
+
 def index(request):
     products_list = Product.objects.all()
     paginator = Paginator(products_list, 10)  # Показывать 10 товаров на странице
     page_number = request.GET.get('page')
     products = paginator.get_page(page_number)
-    return render(request, 'shop/index.html', {'products': products})
+    return render(request, 'users/index.html', {'products': products})
 
 def product_detail(request, product_id):
     try:

@@ -6,6 +6,7 @@ from .models import Product, Category, Order, CartItem, Cart, OrderItem, Telegra
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
+    readonly_fields = ['product', 'quantity', 'price']
 
 
 # admin.site.register(Product)
@@ -20,6 +21,7 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = ['id', 'user', 'created_at', 'status', 'total_price']
     list_filter = ['status', 'created_at']
     search_fields = ['order_key', 'user__username', 'address']
+    readonly_fields = ['order_key', 'user', 'created_at']
     inlines = [OrderItemInline]
     actions = ['mark_as_completed']
 

@@ -7,6 +7,18 @@
 <div class="container mt-4">
     <h1>Оформление заказа</h1>
 
+<!--    поддержка сообщений -->
+    {% if messages %}
+<div class="messages">
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %}">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+
     {% if cart_items or items %}
         <!-- Если есть товары в корзине, показываем форму -->
         {% if error %}

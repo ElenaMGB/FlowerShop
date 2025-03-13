@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from .models import Product, Cart, CartItem, Order, OrderItem, TelegramUser, TelegramNotification
 from django.core.paginator import Paginator
 import time
@@ -76,38 +77,34 @@ def remove_from_cart(request, product_id):
     return redirect('cart')
 
 
-
+#предложенные улучшения использования сообщений
 @login_required
 def checkout(request):
-    # Получаем корзину пользователя
     cart, created = Cart.objects.get_or_create(user=request.user)
     cart_items = CartItem.objects.filter(cart=cart)
-
-    # Считаем общую стоимость
     total_price = sum(item.product.price * item.quantity for item in cart_items)
 
     if request.method == 'POST':
-        # Проверяем, что корзина не пуста
-        if cart_items.exists():
-            # Получаем адрес доставки из формы
-            address = request.POST.get('address', '')
+        if not cart_items.exists():
+            messages.error(request, 'Ваша корзина пуста')
+            return redirect('cart')
 
-            # Проверяем, что адрес указан
-            if not address:
-                # Возвращаемся на форму с сообщением об ошибке
-                return render(request, 'shop/checkout.html', {
-                    'items': cart_items,  # Для совместимости с обоими шаблонами
-                    'cart_items': cart_items,
-                    'total_price': total_price,
-                    'error': 'Укажите адрес доставки'
-                })
+        address = request.POST.get('address', '')
+        if not address:
+            messages.error(request, 'Укажите адрес доставки')
+            return render(request, 'shop/checkout.html', {
+                'cart_items': cart_items,
+                'total_price': total_price
+            })
 
+        try:
             # Создаем заказ
             order = Order.objects.create(
                 user=request.user,
                 address=address,
                 order_key=f"ORDER-{request.user.id}-{int(time.time())}"[:20],
-                status='pending'
+                status='pending',
+                total_price=total_price  # Добавьте это для корректного расчета
             )
 
             # Добавляем товары через OrderItem
@@ -122,14 +119,16 @@ def checkout(request):
             # Очищаем корзину
             cart_items.delete()
 
-            # Перенаправляем на страницу подтверждения
+            messages.success(request, 'Заказ успешно оформлен!')
             return redirect('payment_confirmation')
 
-    # Отображаем страницу оформления заказа
+        except Exception as e:
+            messages.error(request, f'Ошибка при оформлении заказа: {str(e)}')
+
     return render(request, 'shop/checkout.html', {
-        'items': cart_items,  # Для совместимости с обоими шаблонами
         'cart_items': cart_items,
         'total_price': total_price
+
     })
 
 @login_required
@@ -137,49 +136,56 @@ def payment_confirmation(request):
     # Логика оплаты заказа
     return render(request, 'shop/payment_confirmation.html')  # Обратите внимание на 'shop/'
 
-
-# @login_required #для связывания аккаунтов
-# def connect_telegram(request):
+# @login_required
+# def checkout(request):
+#     # Получаем корзину пользователя
+#     cart, created = Cart.objects.get_or_create(user=request.user)
+#     cart_items = CartItem.objects.filter(cart=cart)
+#
+#     # Считаем общую стоимость
+#     total_price = sum(item.product.price * item.quantity for item in cart_items)
+#
 #     if request.method == 'POST':
-#         code = request.POST.get('telegram_code')
-#         if code:
-#             try:
-#                 # Ищем пользователя Telegram с таким кодом
-#                 telegram_user = TelegramUser.objects.get(verification_code=code)
+#         # Проверяем, что корзина не пуста
+#         if cart_items.exists():
+#             # Получаем адрес доставки из формы
+#             address = request.POST.get('address', '')
 #
-#                 # Проверяем, не привязан ли уже пользователь
-#                 if telegram_user.user:
-#                     return render(request, 'shop/profile.html', {
-#                         'error': 'Этот код уже использован или недействителен'
-#                     })
+#             # Проверяем, что адрес указан
+#             if not address:
+#                 # Возвращаемся на форму с сообщением об ошибке
+#                 return render(request, 'shop/checkout.html', {
+#                     'items': cart_items,  # Для совместимости с обоими шаблонами
+#                     'cart_items': cart_items,
+#                     'total_price': total_price,
+#                     'error': 'Укажите адрес доставки'
+#                 })
 #
-#                 # Привязываем Telegram к пользователю сайта
-#                 telegram_user.user = request.user
-#                 telegram_user.save()
+#             # Создаем заказ
+#             order = Order.objects.create(
+#                 user=request.user,
+#                 address=address,
+#                 order_key=f"ORDER-{request.user.id}-{int(time.time())}"[:20],
+#                 status='pending'
+#             )
 #
-#                 # Создаем уведомление о привязке
-#                 TelegramNotification.objects.create(
-#                     telegram_id=telegram_user.telegram_id,
-#                     message_text=f"Ваш аккаунт успешно привязан к профилю на сайте FlowerDelivery!\n\n"
-#                                  f"Теперь вы будете получать уведомления о ваших заказах."
+#             # Добавляем товары через OrderItem
+#             for cart_item in cart_items:
+#                 OrderItem.objects.create(
+#                     order=order,
+#                     product=cart_item.product,
+#                     quantity=cart_item.quantity,
+#                     price=cart_item.product.price
 #                 )
 #
-#                 return render(request, 'shop/profile.html', {
-#                     'message': 'Telegram успешно привязан к вашему аккаунту!'
-#                 })
+#             # Очищаем корзину
+#             cart_items.delete()
 #
-#             except TelegramUser.DoesNotExist:
-#                 return render(request, 'shop/profile.html', {
-#                     'error': 'Неверный код. Пожалуйста, проверьте и попробуйте снова.'
-#                 })
+#             # Перенаправляем на страницу подтверждения
+#             return redirect('payment_confirmation')
 #
-#         return render(request, 'shop/profile.html', {
-#             'error': 'Пожалуйста, введите код привязки'
-#         })
-#
-#     # Проверка, привязан ли уже Telegram
-#     telegram_connected = TelegramUser.objects.filter(user=request.user).exists()
-#
-#     return render(request, 'shop/profile.html', {
-#         'telegram_connected': telegram_connected
-#     })
+#     # Отображаем страницу оформления заказа
+#     return render(request, 'shop/checkout.html', {
+#         'items': cart_items,  # Для совместимости с обоими шаблонами
+#         'cart_items': cart_items,
+#         'total_price': total_price

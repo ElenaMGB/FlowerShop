@@ -4,19 +4,30 @@ from django.dispatch import receiver
 import requests
 from model_utils import FieldTracker
 
-
 from django.contrib.auth.models import User
+
+
+class Category(models.Model):
+    name = models.CharField(max_length=100, verbose_name='Название категории')
+    description = models.TextField(blank=True, null=True, verbose_name='Описание')
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
+
 
 class Product(models.Model):
     name = models.CharField(max_length=255, verbose_name='Название')
     description = models.TextField(blank=True, verbose_name='Описание')
     price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Цена')
     image = models.ImageField(upload_to='products/', blank=True, verbose_name='Изображение')
-    # category = models.CharField(max_length=100, verbose_name='Категория')
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, verbose_name='Категория')
 
     def __str__(self):
         return self.name
-
 
 class Cart(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -108,47 +119,6 @@ def create_order_notification(sender, instance, created, **kwargs):
             telegram_id=telegram_user.telegram_id,
             message_text=message_text
         )
-# @receiver(post_save, sender=Order)
-# def notify_bot_about_status_change(sender, instance, **kwargs):
-#     """Отправляет уведомление боту при изменении статуса заказа."""
-#     # Проверяем, изменился ли статус
-#     if instance._status_before_update != instance.status:
-#         data = {
-#             'telegram_id': 1367180406,  # ID пользователя из Telegram
-#             'order_id': instance.id,
-#             'new_status': instance.status,
-#             'total_price': float(instance.total_price),
-#         }
-#         try:
-#             # Отправка POST-запроса к вашему боту
-#             response = requests.post('http://127.0.0.1:8080/notify/', json=data)
-#             response.raise_for_status()
-#         except requests.RequestException as e:
-#             # Логируем ошибки
-#             print(f"Ошибка при отправке уведомления: {e}")
-
-
-# @receiver(post_save, sender=Order)
-# def notify_bot_about_status_change(sender, instance, created, **kwargs):
-#     """Отправляет уведомление боту при создании заказа."""
-#     if created:  # Проверяем, что заказ только что создан
-#         # Вычисляем total_price из элементов заказа
-#         order_items = OrderItem.objects.filter(order=instance)
-#         total_price = sum(item.price * item.quantity for item in order_items)
-#
-#         data = {
-#             'telegram_id': 1367180406,  # ID пользователя из Telegram
-#             'order_id': instance.id,
-#             'new_status': instance.status,
-#             'total_price': float(total_price),
-#         }
-#         try:
-#             # Отправка POST-запроса к вашему боту
-#             response = requests.post('http://127.0.0.1:8080/notify/', json=data)
-#             response.raise_for_status()
-#         except requests.RequestException as e:
-#             # Логируем ошибки
-#             print(f"Ошибка при отправке уведомления: {e}")
 
 
 class TelegramUser(models.Model):

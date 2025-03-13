@@ -1,12 +1,42 @@
 from django.contrib import admin
-from .models import Product, Order, CartItem, Cart, OrderItem, TelegramUser, TelegramNotification
+from .models import Product, Category, Order, CartItem, Cart, OrderItem, TelegramUser, TelegramNotification
 
-admin.site.register(Product)
-admin.site.register(Order)
+
+
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    extra = 0
+
+
+# admin.site.register(Product)
+# admin.site.register(Order)
 admin.site.register(Cart)
 admin.site.register(CartItem)
 admin.site.register(OrderItem)
 
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'created_at', 'status', 'total_price']
+    list_filter = ['status', 'created_at']
+    search_fields = ['order_key', 'user__username', 'address']
+    inlines = [OrderItemInline]
+    actions = ['mark_as_completed']
+
+    def mark_as_completed(self, request, queryset):
+        queryset.update(status='completed')
+
+    mark_as_completed.short_description = "Отметить как завершенные"
+
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = ['name', 'price', 'category']
+    list_filter = ['category']
+    search_fields = ['name', 'description']
+
+
+admin.site.register(Category)
 
 @admin.register(TelegramUser)
 class TelegramUserAdmin(admin.ModelAdmin):

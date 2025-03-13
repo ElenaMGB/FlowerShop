@@ -78,6 +78,64 @@ def remove_from_cart(request, product_id):
 
 
 #предложенные улучшения использования сообщений
+# @login_required
+# def checkout(request):
+#     cart, created = Cart.objects.get_or_create(user=request.user)
+#     cart_items = CartItem.objects.filter(cart=cart)
+#     total_price = sum(item.product.price * item.quantity for item in cart_items)
+#
+#     if request.method == 'POST':
+#         if not cart_items.exists():
+#             messages.error(request, 'Ваша корзина пуста')
+#             return redirect('cart')
+#
+#         address = request.POST.get('address', '')
+#         if not address:
+#             messages.error(request, 'Укажите адрес доставки')
+#             return render(request, 'shop/checkout.html', {
+#                 'cart_items': cart_items,
+#                 'total_price': total_price
+#             })
+#
+#         try:
+#             # Создаем заказ
+#             order = Order.objects.create(
+#                 user=request.user,
+#                 address=address,
+#                 order_key=f"ORDER-{request.user.id}-{int(time.time())}"[:20],
+#                 status='pending',
+#                 total_price=total_price  # Добавьте это для корректного расчета
+#             )
+#
+#             # Добавляем товары через OrderItem
+#             for cart_item in cart_items:
+#                 OrderItem.objects.create(
+#                     order=order,
+#                     product=cart_item.product,
+#                     quantity=cart_item.quantity,
+#                     price=cart_item.product.price
+#                 )
+#
+#             # Очищаем корзину
+#             cart_items.delete()
+#
+#             messages.success(request, 'Заказ успешно оформлен!')
+#             return redirect('payment_confirmation')
+#
+#         except Exception as e:
+#             messages.error(request, f'Ошибка при оформлении заказа: {str(e)}')
+#
+#     return render(request, 'shop/checkout.html', {
+#         'cart_items': cart_items,
+#         'total_price': total_price
+#
+#     })
+#
+@login_required
+def payment_confirmation(request):
+    # Логика оплаты заказа
+    return render(request, 'shop/payment_confirmation.html')  # Обратите внимание на 'shop/'
+
 @login_required
 def checkout(request):
     cart, created = Cart.objects.get_or_create(user=request.user)
@@ -104,7 +162,7 @@ def checkout(request):
                 address=address,
                 order_key=f"ORDER-{request.user.id}-{int(time.time())}"[:20],
                 status='pending',
-                total_price=total_price  # Добавьте это для корректного расчета
+                total_price=total_price
             )
 
             # Добавляем товары через OrderItem
@@ -120,7 +178,7 @@ def checkout(request):
             cart_items.delete()
 
             messages.success(request, 'Заказ успешно оформлен!')
-            return redirect('payment_confirmation')
+            return redirect('payment', order_id=order.id)  # Перенаправляем на страницу оплаты
 
         except Exception as e:
             messages.error(request, f'Ошибка при оформлении заказа: {str(e)}')
@@ -128,15 +186,7 @@ def checkout(request):
     return render(request, 'shop/checkout.html', {
         'cart_items': cart_items,
         'total_price': total_price
-
     })
-
-@login_required
-def payment_confirmation(request):
-    # Логика оплаты заказа
-    return render(request, 'shop/payment_confirmation.html')  # Обратите внимание на 'shop/'
-
-# @login_required
 # def checkout(request):
 #     # Получаем корзину пользователя
 #     cart, created = Cart.objects.get_or_create(user=request.user)
@@ -189,3 +239,17 @@ def payment_confirmation(request):
 #         'items': cart_items,  # Для совместимости с обоими шаблонами
 #         'cart_items': cart_items,
 #         'total_price': total_price
+
+@login_required
+def payment(request, order_id):
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+
+    if request.method == 'POST':
+        # Логика обработки платежа
+        order.payment_status = 'completed'
+        order.save()
+
+        messages.success(request, 'Платеж успешно завершен!')
+        return redirect('order_detail', order_id=order.id)
+
+    return render(request, 'shop/payment.html', {'order': order})

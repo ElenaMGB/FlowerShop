@@ -1,0 +1,25 @@
+<!-- shop/payment.html -->
+{% extends 'shop/base.html' %}
+{% load static %}
+
+{% block title %}Оплата{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <h1>Оплата заказа</h1>
+    <p>Заказ №{{ order.id }} на сумму {{ order.total_price }} руб.</p>
+
+    <div id="payment-message" style="display: none;" class="alert alert-info">
+        По оплате обратитесь к менеджеру.
+    </div>
+
+    <button id="payment-btn" class="btn btn-primary">Оплатить заказ</button>
+
+    <script>
+        document.getElementById('payment-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('payment-message').style.display = 'block';
+            this.disabled = true;
+        });
+    </script>
+</div>
+{% endblock %}

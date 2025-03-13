@@ -18,7 +18,7 @@
 
 # telegram_bot/bot.py
 
-# telegram_bot/bot.py
+
 
 import asyncio
 import logging

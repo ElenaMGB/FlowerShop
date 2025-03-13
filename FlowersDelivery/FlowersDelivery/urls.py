@@ -9,9 +9,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('users/', include('apps.users.urls')), # Пути пользователей, включая профиль
     path('login/', auth_views.LoginView.as_view(template_name='users/login.html'), name='login'),
+    # path('login/', auth_views.LoginView.as_view(template_name='registration/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='/'), name='logout'),
     path('', include('apps.shop.urls')),  # Основные пути магазина
-    path('accounts/', include('django.contrib.auth.urls')), #аутентификация Django
+    # path('accounts/', include('django.contrib.auth.urls')), #аутентификация Django используется по умолчанию, убирается если есть path('login/',...)
 ]
 
 # обработка медиа-файлов в режиме разработки

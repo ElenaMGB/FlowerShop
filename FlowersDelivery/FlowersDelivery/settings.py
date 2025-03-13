@@ -120,6 +120,7 @@ LANGUAGE_CODE = 'en-us'
 LOGIN_REDIRECT_URL = '/'  # Перенаправление на главную страницу после входа
 # Устанавливаем путь к странице входа
 LOGIN_URL = '/login/'
+# LOGOUT_REDIRECT_URL = '/'  # URL после выхода
 
 TIME_ZONE = 'UTC'
 

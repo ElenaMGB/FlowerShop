@@ -1,51 +1,83 @@
-{% extends 'base.html' %}
+{% extends 'shop/base.html' %}
+{% block title %}Мой профиль{% endblock %}
 
 {% block content %}
-<div class="container my-5">
-    <h1>Профиль пользователя</h1>
-    
-    {% if messages %}
-    <div class="messages">
-        {% for message in messages %}
-        <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-danger{% endif %}">
-            {{ message }}
+<div class="container mt-4">
+    <h1>Мой профиль</h1>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Личная информация</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Имя пользователя:</strong> {{ user.username }}</p>
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>ФИО:</strong> {{ user.profile.full_name|default:"Не указано" }}</p>
+                    <p><strong>Телефон:</strong> {{ user.profile.phone|default:"Не указан" }}</p>
+                    <p><strong>Адрес:</strong> {{ user.profile.address|default:"Не указан" }}</p>
+                </div>
+            </div>
         </div>
-        {% endfor %}
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Привязка Telegram</h5>
+                </div>
+                <div class="card-body">
+                    {% if telegram_connected %}
+                        <div class="alert alert-success">
+                            Ваш аккаунт Telegram успешно привязан!
+                        </div>
+                    {% else %}
+                        <p>Привяжите Telegram для получения уведомлений о заказах:</p>
+                        <ol>
+                            <li>Откройте наш бот <a href="https://t.me/AIneyroTest_bot" target="_blank">@AIneyroTest_bot</a></li>
+                            <li>Отправьте боту команду /register</li>
+                            <li>Введите полученный код в поле ниже:</li>
+                        </ol>
+
+                        <form method="post" action="{% url 'connect_telegram' %}">
+                            {% csrf_token %}
+                            <div class="input-group mb-3">
+                                <input type="text" name="telegram_code" class="form-control" placeholder="Код из Telegram" required>
+                                <button class="btn btn-primary" type="submit">Привязать</button>
+                            </div>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
-    {% endif %}
-    
-    <div class="card mb-4">
-        <div class="card-header">
-            Информация о профиле
-        </div>
-        <div class="card-body">
-            <p><strong>Имя пользователя:</strong> {{ user.username }}</p>
-            {% if user.profile %}
-            <p><strong>ФИО:</strong> {{ user.profile.full_name|default:"Не указано" }}</p>
-            <p><strong>Телефон:</strong> {{ user.profile.phone|default:"Не указан" }}</p>
-            <p><strong>Адрес:</strong> {{ user.profile.address|default:"Не указан" }}</p>
-            {% endif %}
-        </div>
-    </div>
-    
-    <div class="card mb-4">
-        <div class="card-header">
-            Привязка Telegram
-        </div>
-        <div class="card-body">
-            {% if telegram_connected %}
-            <p class="text-success">✅ Ваш аккаунт привязан к Telegram.</p>
-            <p>Вы будете получать уведомления о заказах в Telegram.</p>
-            {% else %}
-            <p>Для получения уведомлений о заказах в Telegram:</p>
-            <ol>
-                <li>Добавьте нашего бота: <a href="https://t.me/your_bot_username" target="_blank">@your_bot_username</a></li>
-                <li>Отправьте боту команду /register</li>
-                <li>Введите полученный код на странице <a href="{% url 'connect_telegram' %}">привязки Telegram</a></li>
-            </ol>
-            <a href="{% url 'connect_telegram' %}" class="btn btn-primary">Привязать Telegram</a>
-            {% endif %}
-        </div>
+
+    <div class="mt-4">
+        <h2>Мои заказы</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Номер заказа</th>
+                    <th>Дата</th>
+                    <th>Сумма</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order.id }}</td>
+                    <td>{{ order.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ order.total_price }} ₽</td>
+                    <td>{{ order.get_status_display }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center">У вас пока нет заказов</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}

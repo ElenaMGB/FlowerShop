@@ -29,12 +29,23 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+# class Cart(models.Model):
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#
+#     def __str__(self):
+#         return f"Корзина {self.user.full_name}"
 class Cart(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Корзина {self.user.full_name}"
+        # Проверяем наличие профиля у пользователя
+        if hasattr(self.user, 'profile') and self.user.profile.full_name:
+            full_name = self.user.profile.full_name
+        else:
+            full_name = self.user.username
+        return f"Корзина {full_name}"
 
 
 class CartItem(models.Model):

@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'shop/base.html' %}
 
 {% block content %}
 <div class="container my-5">
@@ -7,35 +7,29 @@
     {% if messages %}
     <div class="messages mb-4">
         {% for message in messages %}
-        <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-danger{% endif %}">
+        <div class="alert alert-{{ message.tags }}">
             {{ message }}
         </div>
         {% endfor %}
     </div>
     {% endif %}
-    
-    <div class="card">
-        <div class="card-header">
-            Введите код привязки
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="telegram_code">Код подтверждения из Telegram:</label>
+            <input type="text" class="form-control" id="telegram_code" name="telegram_code" placeholder="Введите код">
         </div>
-        <div class="card-body">
-            <p>Чтобы получать уведомления о заказах в Telegram:</p>
-            <ol>
-                <li>Добавьте нашего бота: <a href="https://t.me/your_bot_username" target="_blank">@your_bot_username</a></li>
-                <li>Отправьте боту команду /register</li>
-                <li>Введите полученный код ниже:</li>
-            </ol>
-            
-            <form method="post">
-                {% csrf_token %}
-                <div class="form-group mb-3">
-                    <label for="telegram_code">Код привязки:</label>
-                    <input type="text" id="telegram_code" name="telegram_code" class="form-control" placeholder="Например: ABCD1234">
-                </div>
-                <button type="submit" class="btn btn-primary">Привязать аккаунт</button>
-                <a href="{% url 'profile' %}" class="btn btn-secondary">Вернуться в профиль</a>
-            </form>
-        </div>
+        <button type="submit" class="btn btn-primary mt-3">Привязать</button>
+    </form>
+
+    <div class="mt-4">
+        <p>Чтобы получить код подтверждения:</p>
+        <ol>
+            <li>Откройте наш Telegram бот <a href="https://t.me/AIneyroTest_bot" target="_blank">@AIneyroTest_bot</a></li>
+            <li>Отправьте боту команду /register</li>
+            <li>Скопируйте полученный код и вставьте его выше</li>
+        </ol>
     </div>
 </div>
 {% endblock %}

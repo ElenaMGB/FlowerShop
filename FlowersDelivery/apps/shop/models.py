@@ -91,10 +91,18 @@ class OrderItem(models.Model):
         return f"{self.product.name} x {self.quantity}"
 
 
+import logging
+logger = logging.getLogger(__name__)
+
 @receiver(post_save, sender=Order)
 def create_order_notification(sender, instance, created, **kwargs):
     """Создает уведомление о заказе для отправки через Telegram"""
+    logger.info(f"СИГНАЛ: Сохранен заказ ID {instance.id}, created={created}")
+    # logger.info(f"Сигнал post_save для заказа {instance.id}, created={created}, status={instance.status}")
+
     if created or instance.tracker.has_changed('status'):  # Нужен django-model-utils для tracker
+        logger.info(f"Создаем уведомление для заказа {instance.id}")
+
         # Получаем все товары в заказе
         order_items = OrderItem.objects.filter(order=instance)
         items_text = "\n".join([f"- {item.product.name} x{item.quantity}: {item.price * item.quantity} руб."
@@ -120,8 +128,18 @@ def create_order_notification(sender, instance, created, **kwargs):
         telegram_user = None
         try:
             telegram_user = TelegramUser.objects.get(user=instance.user)
+            logger.info(f"Найден Telegram пользователь: {telegram_user.telegram_id}")
+
+            # Создаем уведомление
+            notification = TelegramNotification.objects.create(
+                telegram_id=telegram_user.telegram_id,
+                message_text=message_text
+            )
+            logger.info(f"Создано уведомление ID: {notification.id}")
+
         except TelegramUser.DoesNotExist:
             # Если не нашли, то просто логируем
+            logger.warning(f"Telegram ID для пользователя {instance.user.username} не найден")
             print(f"Telegram ID для пользователя {instance.user.username} не найден")
             return
 

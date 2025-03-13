@@ -136,8 +136,16 @@ def payment_confirmation(request):
     # Логика оплаты заказа
     return render(request, 'shop/payment_confirmation.html')  # Обратите внимание на 'shop/'
 
+
 @login_required
 def checkout(request):
+    # Проверяем, привязан ли Telegram
+    telegram_connected = TelegramUser.objects.filter(user=request.user).exists()
+
+    if not telegram_connected:
+        messages.warning(request, "Чтобы получать уведомления о заказах, привяжите ваш Telegram в профиле.")
+
+    # Получаем корзину пользователя
     cart, created = Cart.objects.get_or_create(user=request.user)
     cart_items = CartItem.objects.filter(cart=cart)
     total_price = sum(item.product.price * item.quantity for item in cart_items)
@@ -164,6 +172,7 @@ def checkout(request):
                 status='pending',
                 total_price=total_price
             )
+            # order.save() - не нужно, так как Order.objects.create() уже сохраняет объект
 
             # Добавляем товары через OrderItem
             for cart_item in cart_items:
@@ -177,12 +186,15 @@ def checkout(request):
             # Очищаем корзину
             cart_items.delete()
 
-            messages.success(request, 'Заказ успешно оформлен!')
+            # Сообщение об успешном оформлении (объединенное)
+            messages.success(request, "Заказ успешно оформлен! Проверьте уведомление в Telegram.")
+
             return redirect('payment', order_id=order.id)  # Перенаправляем на страницу оплаты
 
         except Exception as e:
             messages.error(request, f'Ошибка при оформлении заказа: {str(e)}')
 
+    # Отображаем страницу оформления заказа при GET-запросе
     return render(request, 'shop/checkout.html', {
         'cart_items': cart_items,
         'total_price': total_price

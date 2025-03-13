@@ -32,23 +32,52 @@ from aiogram.types import Message
 import random
 import string
 
-# Настраиваем путь к Django проекту и инициализируем его
-sys.path.append('C:/Users/el/PycharmProjects/FlowerShop')  # Путь к корню вашего Django проекта
+from config import TOKEN
+
+# # 1.Настраиваем путь к Django проекту и инициализируем его
+# sys.path.append('C:/Users/el/PycharmProjects/FlowerShop')  # Путь к корню вашего Django проекта
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'FlowersDelivery.settings')  # Имя вашего проекта
 django.setup()
 
-# Правильные импорты с учетом структуры проекта
-from django.contrib.auth.models import User
-from FlowersDelivery.apps.shop.models import (
-    Order, OrderItem, TelegramUser, TelegramNotification
-)
-from FlowersDelivery.apps.users.models import UserProfile
+# # 2.Настраиваем относительный путь, чтобы код работал на любом компьютере, и инициализируем его
+# current_dir = os.path.dirname(os.path.abspath(__file__))
+# parent_dir = os.path.dirname(current_dir)  # Получаем родительскую директорию
+# sys.path.append(parent_dir)
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'FlowersDelivery.settings')
+# django.setup()
+
+
+from pathlib import Path
+
+# # Получаем текущую директорию, где находится скрипт бота
+# current_dir = os.path.dirname(os.path.abspath(__file__))
+# # Поднимаемся на один уровень вверх, чтобы достичь корня проекта FlowersDelivery
+# project_root = Path(current_dir).parent
+# # Добавляем корень проекта в sys.path
+# sys.path.append(str(project_root))
+# # Устанавливаем настройки Django
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'FlowersDelivery.settings')
+# # Инициализируем Django
+# django.setup()
+
+
+# Правильные импорты с учетом структуры проекта2
+# from django.contrib.auth.models import User
+# from FlowersDelivery.apps.shop.models import Order, OrderItem, TelegramUser, TelegramNotification
+# from FlowersDelivery.apps.users.models import UserProfile
+# Правильные импорты3
+from apps.shop.models import Order, OrderItem, TelegramUser, TelegramNotification
+from apps.users.models import UserProfile
+
+# # Правильные импорты с учетом структуры проекта
+# from apps.shop.models import Order, OrderItem, TelegramUser, TelegramNotification
+# from apps.users.models import UserProfile
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 
 # Ваш токен Telegram бота
-BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
+BOT_TOKEN = TOKEN
 
 # Создаем экземпляры бота и диспетчера
 bot = Bot(token=BOT_TOKEN)

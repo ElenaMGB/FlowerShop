@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container my-5">
+    <h1>Привязка Telegram</h1>
+    
+    {% if messages %}
+    <div class="messages mb-4">
+        {% for message in messages %}
+        <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-danger{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <div class="card">
+        <div class="card-header">
+            Введите код привязки
+        </div>
+        <div class="card-body">
+            <p>Чтобы получать уведомления о заказах в Telegram:</p>
+            <ol>
+                <li>Добавьте нашего бота: <a href="https://t.me/your_bot_username" target="_blank">@your_bot_username</a></li>
+                <li>Отправьте боту команду /register</li>
+                <li>Введите полученный код ниже:</li>
+            </ol>
+            
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group mb-3">
+                    <label for="telegram_code">Код привязки:</label>
+                    <input type="text" id="telegram_code" name="telegram_code" class="form-control" placeholder="Например: ABCD1234">
+                </div>
+                <button type="submit" class="btn btn-primary">Привязать аккаунт</button>
+                <a href="{% url 'profile' %}" class="btn btn-secondary">Вернуться в профиль</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

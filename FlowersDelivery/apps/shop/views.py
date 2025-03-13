@@ -1,9 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from .models import Product, Cart, CartItem, Order, OrderItem
+from .models import Product, Cart, CartItem, Order, OrderItem, TelegramUser, TelegramNotification
 from django.core.paginator import Paginator
 import time
-
 
 
 def index(request):
@@ -137,3 +136,50 @@ def checkout(request):
 def payment_confirmation(request):
     # Логика оплаты заказа
     return render(request, 'shop/payment_confirmation.html')  # Обратите внимание на 'shop/'
+
+
+# @login_required #для связывания аккаунтов
+# def connect_telegram(request):
+#     if request.method == 'POST':
+#         code = request.POST.get('telegram_code')
+#         if code:
+#             try:
+#                 # Ищем пользователя Telegram с таким кодом
+#                 telegram_user = TelegramUser.objects.get(verification_code=code)
+#
+#                 # Проверяем, не привязан ли уже пользователь
+#                 if telegram_user.user:
+#                     return render(request, 'shop/profile.html', {
+#                         'error': 'Этот код уже использован или недействителен'
+#                     })
+#
+#                 # Привязываем Telegram к пользователю сайта
+#                 telegram_user.user = request.user
+#                 telegram_user.save()
+#
+#                 # Создаем уведомление о привязке
+#                 TelegramNotification.objects.create(
+#                     telegram_id=telegram_user.telegram_id,
+#                     message_text=f"Ваш аккаунт успешно привязан к профилю на сайте FlowerDelivery!\n\n"
+#                                  f"Теперь вы будете получать уведомления о ваших заказах."
+#                 )
+#
+#                 return render(request, 'shop/profile.html', {
+#                     'message': 'Telegram успешно привязан к вашему аккаунту!'
+#                 })
+#
+#             except TelegramUser.DoesNotExist:
+#                 return render(request, 'shop/profile.html', {
+#                     'error': 'Неверный код. Пожалуйста, проверьте и попробуйте снова.'
+#                 })
+#
+#         return render(request, 'shop/profile.html', {
+#             'error': 'Пожалуйста, введите код привязки'
+#         })
+#
+#     # Проверка, привязан ли уже Telegram
+#     telegram_connected = TelegramUser.objects.filter(user=request.user).exists()
+#
+#     return render(request, 'shop/profile.html', {
+#         'telegram_connected': telegram_connected
+#     })

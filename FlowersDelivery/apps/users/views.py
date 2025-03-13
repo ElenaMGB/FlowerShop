@@ -4,7 +4,7 @@ from django.contrib.auth import login
 
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from ..shop.models import TelegramUser, TelegramNotification
+from ..shop.models import TelegramUser, TelegramNotification, Order
 
 def register(request):
     if request.method == 'POST':
@@ -24,8 +24,12 @@ def profile(request):
     # Проверяем, привязан ли уже Telegram
     telegram_connected = TelegramUser.objects.filter(user=request.user).exists()
 
+    # Получаем заказы пользователя
+    orders = Order.objects.filter(user=request.user).order_by('-created_at')
+
     return render(request, 'users/profile.html', {
-        'telegram_connected': telegram_connected
+        'telegram_connected': telegram_connected,
+        'orders': orders
     })
 
 

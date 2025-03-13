@@ -17,6 +17,9 @@ from pathlib import Path
 # Определяем путь к корню проекта
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# URL вашего сайта для формирования полных URL изображений
+BASE_URL = "http://127.0.0.1:8000"  # Замените на реальный URL в продакшн
+
 # Добавляем путь к директориям проекта
 sys.path.append(str(BASE_DIR))
 
@@ -310,28 +313,87 @@ async def cmd_orders(message: Message):
 
 
 # Функция для отправки уведомлений
+# async def check_notifications():
+#     while True:
+#         try:
+#             # Получаем неотправленные уведомления
+#             notifications = await get_unsent_notifications()
+#             logging.info(f"Найдено {len(notifications)} неотправленных уведомлений")
+#
+#             for notification in notifications:
+#                 try:
+#                     # Отправляем уведомление
+#                     await bot.send_message(
+#                         chat_id=notification.telegram_id,
+#                         text=notification.message_text,
+#                         parse_mode="HTML"
+#                     )
+#
+#                     # Помечаем как отправленное
+#                     notification.sent = True
+#                     notification.sent_at = datetime.now()
+#                     await save_notification(notification)
+#
+#                     logging.info(f"Отправлено уведомление {notification.id} пользователю {notification.telegram_id}")
+#
+#                 except Exception as e:
+#                     logging.error(f"Ошибка при отправке уведомления {notification.id}: {e}")
+#
+#             # Пауза между проверками
+#             await asyncio.sleep(15)
+#
+#         except Exception as e:
+#             logging.error(f"Ошибка в функции проверки уведомлений: {e}", exc_info=True)
+#             await asyncio.sleep(60)
+#
+
 async def check_notifications():
     while True:
         try:
-            # Получаем неотправленные уведомления
+            # Получаем все неотправленные уведомления
             notifications = await get_unsent_notifications()
-            logging.info(f"Найдено {len(notifications)} неотправленных уведомлений")
 
             for notification in notifications:
                 try:
-                    # Отправляем уведомление
+                    # Отправляем сообщение
                     await bot.send_message(
                         chat_id=notification.telegram_id,
                         text=notification.message_text,
                         parse_mode="HTML"
                     )
 
-                    # Помечаем как отправленное
+                    # Если это новый заказ, также отправляем изображения букетов
+                    if "НОВЫЙ ЗАКАЗ" in notification.message_text:
+                        # Извлекаем ID заказа из текста уведомления
+                        import re
+                        order_id_match = re.search(r'НОВЫЙ ЗАКАЗ #(\d+)', notification.message_text)
+
+                        if order_id_match:
+                            order_id = int(order_id_match.group(1))
+
+                            # Асинхронное получение информации о заказе
+                            async def get_order_images(order_id):
+                                order = Order.objects.get(id=order_id)
+                                order_items = OrderItem.objects.filter(order=order)
+                                return [(item.product.name, item.product.image.url if item.product.image else None)
+                                        for item in order_items]
+
+                            product_images = await sync_to_async(get_order_images)(order_id)
+
+                            # Отправляем изображения букетов, если они есть
+                            for product_name, image_url in product_images:
+                                if image_url:
+                                    full_url = f"{BASE_URL}{image_url}"  # BASE_URL - URL вашего сайта
+                                    await bot.send_photo(
+                                        chat_id=notification.telegram_id,
+                                        photo=full_url,
+                                        caption=f"Букет: {product_name}"
+                                    )
+
+                    # Отмечаем как отправленное
                     notification.sent = True
                     notification.sent_at = datetime.now()
                     await save_notification(notification)
-
-                    logging.info(f"Отправлено уведомление {notification.id} пользователю {notification.telegram_id}")
 
                 except Exception as e:
                     logging.error(f"Ошибка при отправке уведомления {notification.id}: {e}")
@@ -340,8 +402,9 @@ async def check_notifications():
             await asyncio.sleep(15)
 
         except Exception as e:
-            logging.error(f"Ошибка в функции проверки уведомлений: {e}", exc_info=True)
+            logging.error(f"Ошибка при проверке уведомлений: {e}")
             await asyncio.sleep(60)
+
 
 # Функция для запуска бота
 async def main():
@@ -355,7 +418,6 @@ async def main():
 
     except Exception as e:
         logging.error(f"Ошибка при запуске бота: {e}", exc_info=True)
-
 
 if __name__ == "__main__":
     try:

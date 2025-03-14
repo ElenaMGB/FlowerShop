@@ -82,11 +82,11 @@ async def process_notifications():
                         if hasattr(order, 'comment') and order.comment:
                             order_message += f"📝 Комментарий: {order.comment}\n"
 
+                        # Добавляем информацию о товарах в заказе
                         order_message += f"\n🛒 Товары в заказе:\n"
 
                         total_price = 0
 
-                        # Добавляем информацию о каждом товаре
                         for item in items:
                             item_price = item.price * item.quantity
                             total_price += item_price
@@ -152,7 +152,7 @@ async def process_notifications():
             await asyncio.sleep(60)  # При ошибке делаем более длинную паузу
 
 
-# Основные обработчики команд бота (оставляем как есть)
+# Основные обработчики команд бота
 @dp.message(Command('start'))
 async def cmd_start(message: Message):
     try:

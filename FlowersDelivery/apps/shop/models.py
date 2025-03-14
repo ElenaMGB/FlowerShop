@@ -1,7 +1,6 @@
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-import requests
 from model_utils import FieldTracker
 # from config import ADMIN_TELEGRAM_ID
 from django.contrib.auth.models import User
@@ -94,61 +93,6 @@ class OrderItem(models.Model):
 import logging
 logger = logging.getLogger(__name__)
 
-# @receiver(post_save, sender=Order)
-# def create_order_notification(sender, instance, created, **kwargs):
-#     """Создает уведомление о заказе для отправки через Telegram"""
-#     logger.info(f"СИГНАЛ: Сохранен заказ ID {instance.id}, created={created}")
-#     # logger.info(f"Сигнал post_save для заказа {instance.id}, created={created}, status={instance.status}")
-#
-#     if created or instance.tracker.has_changed('status'):  # Нужен django-model-utils для tracker
-#         logger.info(f"Создаем уведомление для заказа {instance.id}")
-#
-#         # Получаем все товары в заказе
-#         order_items = OrderItem.objects.filter(order=instance)
-#         items_text = "\n".join([f"- {item.product.name} x{item.quantity}: {item.price * item.quantity} руб."
-#                                 for item in order_items])
-#
-#         # Формируем текст сообщения
-#         message_text = (
-#             f"🌸 <b>Заказ #{instance.id}</b> 🌸\n\n"
-#             f"<b>Дата:</b> {instance.created_at.strftime('%Y-%m-%d %H:%M')}\n"
-#             f"<b>Статус:</b> {instance.get_status_display()}\n"
-#             f"<b>Адрес доставки:</b> {instance.address}\n\n"
-#             f"<b>Состав заказа:</b>\n{items_text}\n\n"
-#             f"<b>Итого:</b> {instance.total_price} руб.\n\n"
-#         )
-#
-#         # Добавляем сообщение о смене статуса, если это обновление
-#         if not created and instance.tracker.has_changed('status'):
-#             message_text += f"<b>Статус заказа изменен на:</b> {instance.get_status_display()}\n\n"
-#
-#         message_text += "Спасибо за ваш заказ!"
-#
-#         # Пытаемся найти Telegram ID пользователя
-#         telegram_user = None
-#         try:
-#             telegram_user = TelegramUser.objects.get(user=instance.user)
-#             logger.info(f"Найден Telegram пользователь: {telegram_user.telegram_id}")
-#
-#             # Создаем уведомление
-#             notification = TelegramNotification.objects.create(
-#                 telegram_id=telegram_user.telegram_id,
-#                 message_text=message_text
-#             )
-#             logger.info(f"Создано уведомление ID: {notification.id}")
-#
-#         except TelegramUser.DoesNotExist:
-#             # Если не нашли, то просто логируем
-#             logger.warning(f"Telegram ID для пользователя {instance.user.username} не найден")
-#             print(f"Telegram ID для пользователя {instance.user.username} не найден")
-#             return
-#
-#         # Создаем уведомление
-#         TelegramNotification.objects.create(
-#             telegram_id=telegram_user.telegram_id,
-#             message_text=message_text
-#         )
-
 @receiver(post_save, sender=Order)
 def create_order_notification(sender, instance, created, **kwargs):
     """Создает уведомление о заказе для отправки через Telegram"""
@@ -185,7 +129,7 @@ def create_order_notification(sender, instance, created, **kwargs):
             f"<b>Покупатель:</b> {instance.user.username}\n"
             f"<b>Телефон:</b> {getattr(instance, 'phone', 'Не указан')}\n"
             f"<b>Адрес доставки:</b> {instance.address}\n\n"
-            f"<b>Состав заказа:</b>\n{items_text}\n\n"
+            # f"<b>Состав заказа:</b>\n{items_text}\n\n"
             f"<b>Итого:</b> {instance.total_price} руб."
         )
 
@@ -205,7 +149,7 @@ def create_order_notification(sender, instance, created, **kwargs):
         # 2. ВСЕГДА создаем уведомление для администратора
         try:
             # Импортируем ADMIN_TELEGRAM_ID из config
-            from config import ADMIN_TELEGRAM_ID
+            from FlowersDelivery.config import ADMIN_TELEGRAM_ID
 
             # Создаем уведомление для администратора
             TelegramNotification.objects.create(

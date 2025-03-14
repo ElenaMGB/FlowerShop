@@ -10,7 +10,7 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from asgiref.sync import sync_to_async
 import aiohttp
-
+import re  # Добавляем модуль для регулярных выражений
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,24 +53,38 @@ def save_notification_error(notification, error):
     notification.save()
 
 
+# @sync_to_async
+# def get_order_items_for_telegram_id(telegram_id):
+#     """Получить последний заказ для пользователя с указанным telegram_id"""
+#     try:
+#         # Находим пользователя по telegram_id
+#         telegram_user = TelegramUser.objects.get(telegram_id=telegram_id)
+#         if telegram_user.user:
+#             # Находим последний заказ этого пользователя
+#             latest_order = Order.objects.filter(user=telegram_user.user).order_by('-created_at').first()
+#             if latest_order:
+#                 # Получаем элементы заказа
+#                 return list(OrderItem.objects.filter(order=latest_order).select_related('product')), latest_order
+#     except Exception as e:
+#         logger.error(f"Ошибка при поиске заказа: {e}")
+#     return None, None
+
+
+
+# Новая функция для получения заказа по его ID
 @sync_to_async
-def get_order_items_for_telegram_id(telegram_id):
-    """Получить последний заказ для пользователя с указанным telegram_id"""
+def get_order_items_by_order_id(order_id):
+    """Получить элементы заказа по ID заказа"""
     try:
-        # Находим пользователя по telegram_id
-        telegram_user = TelegramUser.objects.get(telegram_id=telegram_id)
-        if telegram_user.user:
-            # Находим последний заказ этого пользователя
-            latest_order = Order.objects.filter(user=telegram_user.user).order_by('-created_at').first()
-            if latest_order:
-                # Получаем элементы заказа
-                return list(OrderItem.objects.filter(order=latest_order).select_related('product')), latest_order
+        order = Order.objects.get(id=order_id)
+        items = list(OrderItem.objects.filter(order=order).select_related('product'))
+        return items, order
     except Exception as e:
-        logger.error(f"Ошибка при поиске заказа: {e}")
-    return None, None
+        logger.error(f"Ошибка при получении заказа #{order_id}: {e}")
+        return None, None
 
 
-# Асинхронный обработчик уведомлений
+# Изменённая функция process_notifications
 async def process_notifications():
     """Проверяет неотправленные уведомления и отправляет их"""
     while True:
@@ -86,11 +100,6 @@ async def process_notifications():
                         # Определяем, кому отправляем сообщение
                         recipient_id = notification.telegram_id
 
-                        # Если сообщение для администратора, заменяем ID на ID админа из config
-                        if recipient_id == ADMIN_TELEGRAM_ID or "НОВЫЙ ЗАКАЗ" in notification.message_text:
-                            recipient_id = ADMIN_TELEGRAM_ID
-                            logger.info(f"Отправка сообщения администратору (ID: {ADMIN_TELEGRAM_ID})")
-
                         # Отправляем сообщение
                         await bot.send_message(
                             chat_id=recipient_id,
@@ -98,33 +107,49 @@ async def process_notifications():
                             parse_mode="HTML"
                         )
 
-                        # Если сообщение для администратора, добавляем изображения продуктов
-                        if recipient_id == ADMIN_TELEGRAM_ID:
-                            items, order = await get_order_items_for_telegram_id(notification.telegram_id)
-                            if items:
-                                for item in items:
-                                    if item.product and hasattr(item.product, 'image') and item.product.image:
-                                        try:
-                                            image_url = f"{BASE_URL}{item.product.image.url}"
-                                            logger.info(f"Загрузка изображения с URL: {image_url}")
+                        # Если сообщение для администратора и содержит информацию о новом заказе
+                        if recipient_id == ADMIN_TELEGRAM_ID and "НОВЫЙ ЗАКАЗ" in notification.message_text:
+                            # Извлекаем ID заказа из текста сообщения с помощью регулярного выражения
+                            order_id_match = re.search(r'НОВЫЙ ЗАКАЗ #(\d+)', notification.message_text)
 
-                                            async with aiohttp.ClientSession() as session:
-                                                async with session.get(image_url) as response:
-                                                    if response.status == 200:
-                                                        image_data = await response.read()
+                            if order_id_match:
+                                order_id = int(order_id_match.group(1))
+                                logger.info(f"Извлечен ID заказа: {order_id}")
 
-                                                        # Отправляем изображение
-                                                        await bot.send_photo(
-                                                            chat_id=ADMIN_TELEGRAM_ID,
-                                                            photo=types.BufferedInputFile(
-                                                                image_data,
-                                                                filename=f"product_{item.product.id}.jpg"
-                                                            ),
-                                                            caption=f"{item.product.name} - {item.price} руб. x {item.quantity} шт."
-                                                        )
-                                                        logger.info(f"Изображение товара {item.product.id} отправлено")
-                                        except Exception as e:
-                                            logger.error(f"Ошибка при отправке изображения: {e}")
+                                # Получаем элементы заказа по ID
+                                items, order = await get_order_items_by_order_id(order_id)
+
+                                if items:
+                                    logger.info(f"Найдено {len(items)} товаров в заказе #{order_id}")
+
+                                    for item in items:
+                                        if item.product and hasattr(item.product, 'image') and item.product.image:
+                                            try:
+                                                image_url = f"{BASE_URL}{item.product.image.url}"
+                                                logger.info(f"Загрузка изображения с URL: {image_url}")
+
+                                                async with aiohttp.ClientSession() as session:
+                                                    async with session.get(image_url) as response:
+                                                        if response.status == 200:
+                                                            image_data = await response.read()
+
+                                                            # Отправляем изображение
+                                                            await bot.send_photo(
+                                                                chat_id=ADMIN_TELEGRAM_ID,
+                                                                photo=types.BufferedInputFile(
+                                                                    image_data,
+                                                                    filename=f"product_{item.product.id}.jpg"
+                                                                ),
+                                                                caption=f"{item.product.name} - {item.price} руб. x {item.quantity} шт."
+                                                            )
+                                                            logger.info(
+                                                                f"Изображение товара {item.product.id} отправлено")
+                                            except Exception as e:
+                                                logger.error(f"Ошибка при отправке изображения: {e}")
+                                else:
+                                    logger.error(f"Не удалось найти товары для заказа #{order_id}")
+                            else:
+                                logger.error(f"Не удалось извлечь ID заказа из сообщения")
 
                         # Помечаем уведомление как отправленное
                         await mark_notification_sent(notification)
@@ -140,6 +165,77 @@ async def process_notifications():
         except Exception as e:
             logger.error(f"Глобальная ошибка в процессе обработки уведомлений: {e}")
             await asyncio.sleep(60)
+
+# # Асинхронный обработчик уведомлений
+# async def process_notifications():
+#     """Проверяет неотправленные уведомления и отправляет их"""
+#     while True:
+#         try:
+#             # Получаем неотправленные уведомления
+#             notifications = await get_pending_notifications()
+#
+#             if notifications:
+#                 logger.info(f"Найдено {len(notifications)} неотправленных уведомлений")
+#
+#                 for notification in notifications:
+#                     try:
+#                         # Определяем, кому отправляем сообщение
+#                         recipient_id = notification.telegram_id
+#
+#                         # Если сообщение для администратора, заменяем ID на ID админа из config
+#                         if recipient_id == ADMIN_TELEGRAM_ID or "НОВЫЙ ЗАКАЗ" in notification.message_text:
+#                             recipient_id = ADMIN_TELEGRAM_ID
+#                             logger.info(f"Отправка сообщения администратору (ID: {ADMIN_TELEGRAM_ID})")
+#
+#                         # Отправляем сообщение
+#                         await bot.send_message(
+#                             chat_id=recipient_id,
+#                             text=notification.message_text,
+#                             parse_mode="HTML"
+#                         )
+#
+#                         # Если сообщение для администратора, добавляем изображения продуктов
+#                         if recipient_id == ADMIN_TELEGRAM_ID:
+#                             items, order = await get_order_items_for_telegram_id(notification.telegram_id)
+#                             if items:
+#                                 for item in items:
+#                                     if item.product and hasattr(item.product, 'image') and item.product.image:
+#                                         try:
+#                                             image_url = f"{BASE_URL}{item.product.image.url}"
+#                                             logger.info(f"Загрузка изображения с URL: {image_url}")
+#
+#                                             async with aiohttp.ClientSession() as session:
+#                                                 async with session.get(image_url) as response:
+#                                                     if response.status == 200:
+#                                                         image_data = await response.read()
+#
+#                                                         # Отправляем изображение
+#                                                         await bot.send_photo(
+#                                                             chat_id=ADMIN_TELEGRAM_ID,
+#                                                             photo=types.BufferedInputFile(
+#                                                                 image_data,
+#                                                                 filename=f"product_{item.product.id}.jpg"
+#                                                             ),
+#                                                             caption=f"{item.product.name} - {item.price} руб. x {item.quantity} шт."
+#                                                         )
+#                                                         logger.info(f"Изображение товара {item.product.id} отправлено")
+#                                         except Exception as e:
+#                                             logger.error(f"Ошибка при отправке изображения: {e}")
+#
+#                         # Помечаем уведомление как отправленное
+#                         await mark_notification_sent(notification)
+#                         logger.info(f"Уведомление успешно отправлено")
+#
+#                     except Exception as e:
+#                         logger.error(f"Ошибка при обработке уведомления {notification.id}: {e}")
+#                         await save_notification_error(notification, e)
+#
+#             # Пауза между проверками
+#             await asyncio.sleep(30)
+#
+#         except Exception as e:
+#             logger.error(f"Глобальная ошибка в процессе обработки уведомлений: {e}")
+#             await asyncio.sleep(60)
 
 
 # Основные обработчики команд бота

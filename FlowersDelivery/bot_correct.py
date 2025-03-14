@@ -10,146 +10,136 @@ from aiogram.filters import Command
 from aiogram.types import Message
 from asgiref.sync import sync_to_async
 import aiohttp
-import random
-import string
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-from io import BytesIO
-
-# Глобальная переменная для хранения текущей страницы
-current_page = 0
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Определяем путь к корню проекта Django (для доступа к базе данных)
+# Определяем путь к корню проекта Django
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# Настраиваем Django для доступа к моделям
 sys.path.append(str(BASE_DIR))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'FlowersDelivery.settings')
 django.setup()
 
-# URL вашего сайта для формирования полных URL изображений
-BASE_URL = "http://127.0.0.1:8000"  # Замените на реальный URL в продакшене
-
-# Теперь импортируем модели Django
+# Импортируем модели Django
 from apps.shop.models import Order, OrderItem, TelegramUser, TelegramNotification
 from apps.users.models import UserProfile
-
 from config import TOKEN, ADMIN_TELEGRAM_ID
 
+# URL для изображений
+BASE_URL = "http://127.0.0.1:8000"
 
 # Создаем экземпляры бота и диспетчера
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 
+# Асинхронные обертки для работы с Django ORM
+@sync_to_async
+def get_pending_notifications():
+    return list(TelegramNotification.objects.filter(sent=False).order_by('created_at')[:10])
+
+
+@sync_to_async
+def mark_notification_sent(notification):
+    notification.sent = True
+    notification.sent_at = datetime.now()
+    notification.save()
+
+
+@sync_to_async
+def save_notification_error(notification, error):
+    notification.error_message = str(error)
+    notification.save()
+
+
+@sync_to_async
+def get_order_items_for_telegram_id(telegram_id):
+    """Получить последний заказ для пользователя с указанным telegram_id"""
+    try:
+        # Находим пользователя по telegram_id
+        telegram_user = TelegramUser.objects.get(telegram_id=telegram_id)
+        if telegram_user.user:
+            # Находим последний заказ этого пользователя
+            latest_order = Order.objects.filter(user=telegram_user.user).order_by('-created_at').first()
+            if latest_order:
+                # Получаем элементы заказа
+                return list(OrderItem.objects.filter(order=latest_order).select_related('product')), latest_order
+    except Exception as e:
+        logger.error(f"Ошибка при поиске заказа: {e}")
+    return None, None
+
+
 # Асинхронный обработчик уведомлений
 async def process_notifications():
-    """Проверяет неотправленные уведомления и отправляет их администратору"""
+    """Проверяет неотправленные уведомления и отправляет их"""
     while True:
         try:
             # Получаем неотправленные уведомления
-            async def get_pending_notifications():
-                return list(
-                    TelegramNotification.objects.filter(sent=False).select_related('order').order_by('created_at')[:10])
-
-            notifications = await sync_to_async(get_pending_notifications)()
+            notifications = await get_pending_notifications()
 
             if notifications:
                 logger.info(f"Найдено {len(notifications)} неотправленных уведомлений")
 
                 for notification in notifications:
                     try:
-                        # Получаем данные заказа
-                        async def get_order_details():
-                            order = notification.order
-                            items = OrderItem.objects.filter(order=order).select_related('product')
-                            return order, list(items)
+                        # Определяем, кому отправляем сообщение
+                        recipient_id = notification.telegram_id
 
-                        order, items = await sync_to_async(get_order_details)()
+                        # Если сообщение для администратора, заменяем ID на ID админа из config
+                        if recipient_id == ADMIN_TELEGRAM_ID or "НОВЫЙ ЗАКАЗ" in notification.message_text:
+                            recipient_id = ADMIN_TELEGRAM_ID
+                            logger.info(f"Отправка сообщения администратору (ID: {ADMIN_TELEGRAM_ID})")
 
-                        # Формируем сообщение о заказе
-                        order_message = (
-                            f"📦 НОВЫЙ ЗАКАЗ #{order.id}\n\n"
-                            f"📅 Дата: {order.created_at.strftime('%d.%m.%Y %H:%M')}\n"
-                            f"👤 Покупатель: {order.full_name}\n"
-                            f"📱 Телефон: {order.phone}\n"
-                            f"🏠 Адрес доставки: {order.address}\n"
-                        )
-
-                        if hasattr(order, 'comment') and order.comment:
-                            order_message += f"📝 Комментарий: {order.comment}\n"
-
-                        # Добавляем информацию о товарах в заказе
-                        order_message += f"\n🛒 Товары в заказе:\n"
-
-                        total_price = 0
-
-                        for item in items:
-                            item_price = item.price * item.quantity
-                            total_price += item_price
-                            order_message += f"- {item.product.name} x{item.quantity} = {item_price} руб.\n"
-
-                        order_message += f"\n💰 Итого: {total_price} руб."
-
-                        # Отправляем общую информацию о заказе
+                        # Отправляем сообщение
                         await bot.send_message(
-                            chat_id=ADMIN_TELEGRAM_ID,
-                            text=order_message,
+                            chat_id=recipient_id,
+                            text=notification.message_text,
                             parse_mode="HTML"
                         )
 
-                        # Отправляем изображения для каждого товара в заказе
-                        for item in items:
-                            if hasattr(item.product, 'image') and item.product.image:
-                                try:
-                                    image_url = f"{BASE_URL}{item.product.image.url}"
+                        # Если сообщение для администратора, добавляем изображения продуктов
+                        if recipient_id == ADMIN_TELEGRAM_ID:
+                            items, order = await get_order_items_for_telegram_id(notification.telegram_id)
+                            if items:
+                                for item in items:
+                                    if item.product and hasattr(item.product, 'image') and item.product.image:
+                                        try:
+                                            image_url = f"{BASE_URL}{item.product.image.url}"
+                                            logger.info(f"Загрузка изображения с URL: {image_url}")
 
-                                    # Скачиваем изображение
-                                    async with aiohttp.ClientSession() as session:
-                                        async with session.get(image_url) as response:
-                                            if response.status == 200:
-                                                image_data = await response.read()
+                                            async with aiohttp.ClientSession() as session:
+                                                async with session.get(image_url) as response:
+                                                    if response.status == 200:
+                                                        image_data = await response.read()
 
-                                                # Отправляем изображение с подписью
-                                                await bot.send_photo(
-                                                    chat_id=ADMIN_TELEGRAM_ID,
-                                                    photo=types.BufferedInputFile(
-                                                        image_data,
-                                                        filename=f"product_{item.product.id}.jpg"
-                                                    ),
-                                                    caption=f"{item.product.name} - {item.price} руб. x {item.quantity} шт."
-                                                )
-                                except Exception as e:
-                                    logger.error(f"Ошибка при отправке изображения: {e}")
+                                                        # Отправляем изображение
+                                                        await bot.send_photo(
+                                                            chat_id=ADMIN_TELEGRAM_ID,
+                                                            photo=types.BufferedInputFile(
+                                                                image_data,
+                                                                filename=f"product_{item.product.id}.jpg"
+                                                            ),
+                                                            caption=f"{item.product.name} - {item.price} руб. x {item.quantity} шт."
+                                                        )
+                                                        logger.info(f"Изображение товара {item.product.id} отправлено")
+                                        except Exception as e:
+                                            logger.error(f"Ошибка при отправке изображения: {e}")
 
                         # Помечаем уведомление как отправленное
-                        async def mark_as_sent():
-                            notification.sent = True
-                            notification.sent_at = datetime.now()
-                            notification.save()
-
-                        await sync_to_async(mark_as_sent)()
-                        logger.info(f"Уведомление для заказа #{order.id} успешно отправлено")
+                        await mark_notification_sent(notification)
+                        logger.info(f"Уведомление успешно отправлено")
 
                     except Exception as e:
-                        # Записываем ошибку и продолжаем с другими уведомлениями
                         logger.error(f"Ошибка при обработке уведомления {notification.id}: {e}")
-
-                        async def mark_error():
-                            notification.error_message = str(e)
-                            notification.save()
-
-                        await sync_to_async(mark_error)()
+                        await save_notification_error(notification, e)
 
             # Пауза между проверками
             await asyncio.sleep(30)
 
         except Exception as e:
             logger.error(f"Глобальная ошибка в процессе обработки уведомлений: {e}")
-            await asyncio.sleep(60)  # При ошибке делаем более длинную паузу
+            await asyncio.sleep(60)
 
 
 # Основные обработчики команд бота
@@ -161,7 +151,7 @@ async def cmd_start(message: Message):
         first_name = message.from_user.first_name
         last_name = message.from_user.last_name
 
-        # Синхронная функция для получения или создания пользователя
+        @sync_to_async
         def get_or_create_user():
             return TelegramUser.objects.get_or_create(
                 telegram_id=telegram_id,
@@ -172,20 +162,17 @@ async def cmd_start(message: Message):
                 }
             )
 
-        # Обертываем синхронную функцию в sync_to_async
-        telegram_user, created = await sync_to_async(get_or_create_user)()
-
+        telegram_user, created = await get_or_create_user()
         logging.info(f"Пользователь {'создан' if created else 'найден'}: {telegram_id}")
 
-        # Синхронная функция для проверки наличия связанного пользователя
+        @sync_to_async
         def check_user():
             return telegram_user.user is not None
 
-        # Обертываем синхронную функцию в sync_to_async
-        has_user = await sync_to_async(check_user)()
+        has_user = await check_user()
 
         if has_user:
-            # Синхронная функция для получения профиля пользователя
+            @sync_to_async
             def get_user_profile():
                 try:
                     profile = UserProfile.objects.get(user=telegram_user.user)
@@ -193,211 +180,24 @@ async def cmd_start(message: Message):
                 except UserProfile.DoesNotExist:
                     return telegram_user.user.username
 
-            welcome_name = await sync_to_async(get_user_profile)()
-            await message.answer(f'Добро пожаловать, {welcome_name}! Ваш аккаунт привязан к профилю на сайте.')
+            welcome_name = await get_user_profile()
+            await message.answer(f'Добро пожаловать, {welcome_name}! Ваш аккаунт привязан к профилю.')
         else:
-            await message.answer(
-                f'Добро пожаловать, {first_name}! Этот бот поможет вам получать уведомления о ваших заказах.\n\n'
-                f'Чтобы привязать ваш Telegram к аккаунту на сайте, используйте команду /register'
-            )
+            await message.answer('Добро пожаловать! Используйте команду /link для привязки аккаунта.')
+
     except Exception as e:
-        logging.error(f"Ошибка в обработчике /start: {e}", exc_info=True)
-        await message.answer("Произошла ошибка при обработке команды")
+        logging.error(f"Ошибка в обработчике start: {e}")
+        await message.answer('Произошла ошибка при обработке команды.')
 
 
-
-@dp.message(Command('help'))
-async def cmd_help(message: Message):
-    user_id = message.from_user.id
-    order_count = await sync_to_async(Order.objects.filter(user_id=user_id).count)()
-
-    await message.answer(
-        f'Этот бот предназначен для уведомлений о заказах цветов.\n\n'
-        f'У вас {order_count} заказов.\n\n'
-        'Доступные команды:\n'
-        '/start - Начать работу с ботом\n'
-        '/help - Показать справку\n'
-        '/register - Получить код для привязки к аккаунту на сайте\n'
-        '/orders - Показать ваши последние заказы (если аккаунт привязан)'
-    )
-
-## Обработчик для регистрации пользователя
-@dp.message(Command('register'))
-async def cmd_register(message: Message):
-    try:
-        telegram_id = message.from_user.id
-        username = message.from_user.username
-        first_name = message.from_user.first_name
-        last_name = message.from_user.last_name
-
-        # Синхронная функция для получения или создания пользователя
-        def get_or_create_user():
-            return TelegramUser.objects.get_or_create(
-                telegram_id=telegram_id,
-                defaults={
-                    'username': username,
-                    'first_name': first_name,
-                    'last_name': last_name
-                }
-            )
-
-        # Обертываем синхронную функцию в sync_to_async
-        telegram_user, created = await sync_to_async(get_or_create_user)()
-
-        # Синхронная функция для проверки наличия связанного пользователя
-        def check_user():
-            return telegram_user.user is not None
-
-        # Обертываем синхронную функцию в sync_to_async
-        has_user = await sync_to_async(check_user)()
-
-        if has_user:
-            await message.answer('Ваш аккаунт уже привязан к профилю на сайте.')
-            return
-
-        # Генерируем новый код подтверждения
-        verification_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-        telegram_user.verification_code = verification_code
-
-        # Синхронная функция для сохранения пользователя
-        def save_user():
-            telegram_user.save()
-
-        # Обертываем синхронную функцию в sync_to_async
-        await sync_to_async(save_user)()
-
-        await message.answer(
-            f'Ваш код для привязки аккаунта на сайте: <b>{verification_code}</b>\n\n'
-            f'Введите его в разделе "Профиль" на нашем сайте.',
-            parse_mode="HTML"
-        )
-    except Exception as e:
-        logging.error(f"Ошибка в обработчике /register: {e}", exc_info=True)
-        await message.answer("Произошла ошибка при обработке команды")
-
-
-# Обработчик для просмотра заказов
-@dp.message(Command('orders'))
-async def cmd_orders(message: Message):
-    try:
-        telegram_id = message.from_user.id
-
-        # Синхронная функция для получения пользователя Telegram
-        def get_telegram_user():
-            try:
-                return TelegramUser.objects.get(telegram_id=telegram_id)
-            except TelegramUser.DoesNotExist:
-                return None
-
-        # Обертываем синхронную функцию в sync_to_async
-        telegram_user = await sync_to_async(get_telegram_user)()
-
-        # Синхронная функция для проверки наличия связанного пользователя
-        def check_user():
-            return telegram_user.user is not None
-
-        # Обертываем синхронную функцию в sync_to_async
-        has_user = await sync_to_async(check_user)()
-
-        if not telegram_user or not has_user:
-            await message.answer(
-                'Для просмотра заказов необходимо привязать ваш Telegram к аккаунту на сайте.\n'
-                'Используйте команду /register'
-            )
-            return
-
-        # Синхронная функция для получения заказов
-        def get_orders():
-            return list(Order.objects.filter(user=telegram_user.user).order_by('-created_at')[:10])
-
-        # Обертываем синхронную функцию в sync_to_async
-        orders = await sync_to_async(get_orders)()
-
-        if not orders:
-            await message.answer('У вас пока нет заказов.')
-            return
-
-        # Формируем сообщение со списком заказов
-        response = '<b>Ваши последние 10 заказов:</b>\n\n'
-
-        # Синхронная функция для получения статусов
-        def get_status_choices():
-            return dict(Order._meta.get_field('status').choices)
-
-        # Обертываем синхронную функцию в sync_to_async
-        status_choices = await sync_to_async(get_status_choices)()
-
-        for order in orders:
-            status_display = status_choices.get(order.status, 'Неизвестный статус')
-            response += (
-                f"📦 Заказ #{order.id}\n"
-                f"📅 Дата: {order.created_at.strftime('%d.%m.%Y %H:%M')}\n"
-                f"📦 Статус: {status_display}\n"
-                f"💰 Сумма: {order.total_price} руб.\n\n"
-            )
-
-        await message.answer(response, parse_mode="HTML")
-    except Exception as e:
-        logging.error(f"Ошибка в обработчике /orders: {e}", exc_info=True)
-        await message.answer("Произошла ошибка при обработке команды")
-
-
-
-async def check_notifications():
-    while True:
-        try:
-            # Правильное использование sync_to_async
-            def get_notifications():
-                return list(TelegramNotification.objects.filter(sent=False).order_by('created_at'))
-
-            notifications = await sync_to_async(get_notifications)()
-
-            for notification in notifications:
-                try:
-                    # Отправляем сообщение
-                    await bot.send_message(
-                        chat_id=notification.telegram_id,
-                        text=notification.message_text,
-                        parse_mode="HTML"
-                    )
-
-                    # Отмечаем как отправленное
-                    def mark_as_sent():
-                        notification.sent = True
-                        notification.sent_at = datetime.now()
-                        notification.save()
-
-                    await sync_to_async(mark_as_sent)()
-
-                    logging.info(f"Отправлено уведомление {notification.id} пользователю {notification.telegram_id}")
-
-                except Exception as e:
-                    logging.error(f"Ошибка при отправке уведомления {notification.id}: {e}")
-
-            # Пауза между проверками
-            await asyncio.sleep(5)
-
-        except Exception as e:
-            logging.error(f"Ошибка при проверке уведомлений: {e}")
-            await asyncio.sleep(30)
-
-# Функция для запуска бота
+# Запуск бота
 async def main():
-    try:
-        # Запускаем проверку уведомлений в фоновом режиме
-        asyncio.create_task(check_notifications())
+    # Запускаем фоновую задачу по обработке уведомлений
+    asyncio.create_task(process_notifications())
 
-        # Запускаем бота
-        logging.info("Бот запускается...")
-        await dp.start_polling(bot)
+    # Запускаем бота
+    await dp.start_polling(bot)
 
-    except Exception as e:
-        logging.error(f"Ошибка при запуске бота: {e}", exc_info=True)
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logging.info("Бот остановлен пользователем")
-    except Exception as e:
-        logging.error(f"Критическая ошибка: {e}", exc_info=True)
+    asyncio.run(main())

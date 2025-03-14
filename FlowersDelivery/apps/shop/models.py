@@ -3,7 +3,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 import requests
 from model_utils import FieldTracker
-
+# from config import ADMIN_TELEGRAM_ID
 from django.contrib.auth.models import User
 
 
@@ -156,14 +156,14 @@ def create_order_notification(sender, instance, created, **kwargs):
         # Получаем все товары в заказе
         order_items = OrderItem.objects.filter(order=instance)
 
-        # Формируем список товаров для сообщения (без картинок)
+        # Формируем список товаров для сообщения
         items_text = "\n".join([
             f"• {item.product.name} x{item.quantity}: {item.price * item.quantity} руб."
             for item in order_items
         ])
 
-        # Формируем текст сообщения
-        message_text = (
+        # Формируем текст сообщения для клиента
+        client_message = (
             f"🌸 <b>Информация о заказе #{instance.id}</b> 🌸\n\n"
             f"<b>Дата:</b> {instance.created_at.strftime('%d.%m.%Y %H:%M')}\n"
             f"<b>Статус:</b> {instance.get_status_display()}\n"
@@ -172,26 +172,49 @@ def create_order_notification(sender, instance, created, **kwargs):
             f"<b>Итого:</b> {instance.total_price} руб.\n\n"
         )
 
-        # Добавляем сообщение о статусе заказа
+        # Добавляем сообщение о статусе заказа для клиента
         if created:
-            message_text += "Спасибо за ваш заказ! Мы свяжемся с вами для уточнения деталей доставки."
+            client_message += "Спасибо за ваш заказ! Мы свяжемся с вами для уточнения деталей доставки."
         elif instance.tracker.has_changed('status'):
-            message_text += f"Статус вашего заказа изменен на: <b>{instance.get_status_display()}</b>"
+            client_message += f"Статус вашего заказа изменен на: <b>{instance.get_status_display()}</b>"
 
-        # Пытаемся найти Telegram ID пользователя
+        # Формируем отдельное сообщение для администратора (более детальное)
+        admin_message = (
+            f"🌸 <b>НОВЫЙ ЗАКАЗ #{instance.id}</b> 🌸\n\n"
+            f"<b>Дата:</b> {instance.created_at.strftime('%d.%m.%Y %H:%M')}\n"
+            f"<b>Покупатель:</b> {instance.user.username}\n"
+            f"<b>Телефон:</b> {getattr(instance, 'phone', 'Не указан')}\n"
+            f"<b>Адрес доставки:</b> {instance.address}\n\n"
+            f"<b>Состав заказа:</b>\n{items_text}\n\n"
+            f"<b>Итого:</b> {instance.total_price} руб."
+        )
+
+        # 1. Отправляем уведомление клиенту, если у него есть Telegram
         try:
             telegram_user = TelegramUser.objects.get(user=instance.user)
 
-            # Создаем уведомление
+            # Создаем уведомление для клиента
             TelegramNotification.objects.create(
                 telegram_id=telegram_user.telegram_id,
-                message_text=message_text
+                message_text=client_message
             )
-
-            print(
-                f"Создано уведомление для пользователя {instance.user.username} (Telegram ID: {telegram_user.telegram_id})")
+            print(f"Создано уведомление для клиента {instance.user.username}")
         except TelegramUser.DoesNotExist:
             print(f"Telegram ID для пользователя {instance.user.username} не найден")
+
+        # 2. ВСЕГДА создаем уведомление для администратора
+        try:
+            # Импортируем ADMIN_TELEGRAM_ID из config
+            from config import ADMIN_TELEGRAM_ID
+
+            # Создаем уведомление для администратора
+            TelegramNotification.objects.create(
+                telegram_id=ADMIN_TELEGRAM_ID,
+                message_text=admin_message
+            )
+            print(f"Создано уведомление для администратора о заказе #{instance.id}")
+        except Exception as e:
+            print(f"Ошибка при создании уведомления для администратора: {e}")
 # Очень подробные уведомления с картинками
 # @receiver(post_save, sender=Order)
 # def create_order_notification(sender, instance, created, **kwargs):

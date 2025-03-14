@@ -9,7 +9,7 @@
         {% if product.image %}
             <img src="{{ product.image.url }}" alt="{{ product.name }}">
         {% else %}
-            <img src="{% static 'img/product_placeholder.png' %}" alt="Без изображения">
+            <img src="{% static 'products/buqiet.png' %}" alt="Без изображения">
         {% endif %}
         <h2>{{ product.name }}</h2>
         <p>{{ product.description }}</p>

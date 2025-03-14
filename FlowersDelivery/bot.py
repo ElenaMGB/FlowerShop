@@ -1,16 +1,7 @@
 # инициализацию Django
-import asyncio
-import logging
 import os
 import sys
 import django
-from datetime import datetime
-from pathlib import Path
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
-from asgiref.sync import sync_to_async
-import random
-import string
 from pathlib import Path
 
 

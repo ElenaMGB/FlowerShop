@@ -63,6 +63,9 @@ class BotCommandsTest(unittest.TestCase):
         self.assertIn("код для привязки", call_args)
         self.assertIn("<b>TEST123</b>", call_args)
 
+def tearDown(self):
+    # Очистка после тестов
+    pass
 
 # Запуск тестов
 if __name__ == '__main__':

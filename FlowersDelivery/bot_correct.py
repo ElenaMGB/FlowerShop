@@ -12,7 +12,11 @@ from asgiref.sync import sync_to_async
 import aiohttp
 import random
 import string
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from io import BytesIO
+
+# Глобальная переменная для хранения текущей страницы
+current_page = 0
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -152,13 +156,12 @@ async def process_notifications():
 @dp.message(Command('start'))
 async def cmd_start(message: Message):
     try:
-        # Данные пользователя
         telegram_id = message.from_user.id
         username = message.from_user.username
         first_name = message.from_user.first_name
         last_name = message.from_user.last_name
 
-        # Правильное использование sync_to_async
+        # Синхронная функция для получения или создания пользователя
         def get_or_create_user():
             return TelegramUser.objects.get_or_create(
                 telegram_id=telegram_id,
@@ -169,17 +172,25 @@ async def cmd_start(message: Message):
                 }
             )
 
+        # Обертываем синхронную функцию в sync_to_async
         telegram_user, created = await sync_to_async(get_or_create_user)()
 
         logging.info(f"Пользователь {'создан' if created else 'найден'}: {telegram_id}")
 
-        # Если пользователь уже привязан к аккаунту на сайте
-        if telegram_user.user:
+        # Синхронная функция для проверки наличия связанного пользователя
+        def check_user():
+            return telegram_user.user is not None
+
+        # Обертываем синхронную функцию в sync_to_async
+        has_user = await sync_to_async(check_user)()
+
+        if has_user:
+            # Синхронная функция для получения профиля пользователя
             def get_user_profile():
                 try:
                     profile = UserProfile.objects.get(user=telegram_user.user)
                     return profile.full_name or telegram_user.user.username
-                except Exception:
+                except UserProfile.DoesNotExist:
                     return telegram_user.user.username
 
             welcome_name = await sync_to_async(get_user_profile)()
@@ -194,10 +205,15 @@ async def cmd_start(message: Message):
         await message.answer("Произошла ошибка при обработке команды")
 
 
+
 @dp.message(Command('help'))
 async def cmd_help(message: Message):
+    user_id = message.from_user.id
+    order_count = await sync_to_async(Order.objects.filter(user_id=user_id).count)()
+
     await message.answer(
-        'Этот бот предназначен для уведомлений о заказах цветов.\n\n'
+        f'Этот бот предназначен для уведомлений о заказах цветов.\n\n'
+        f'У вас {order_count} заказов.\n\n'
         'Доступные команды:\n'
         '/start - Начать работу с ботом\n'
         '/help - Показать справку\n'
@@ -214,7 +230,7 @@ async def cmd_register(message: Message):
         first_name = message.from_user.first_name
         last_name = message.from_user.last_name
 
-        # Получаем пользователя из базы
+        # Синхронная функция для получения или создания пользователя
         def get_or_create_user():
             return TelegramUser.objects.get_or_create(
                 telegram_id=telegram_id,
@@ -225,10 +241,17 @@ async def cmd_register(message: Message):
                 }
             )
 
+        # Обертываем синхронную функцию в sync_to_async
         telegram_user, created = await sync_to_async(get_or_create_user)()
 
-        # Если пользователь уже привязан
-        if telegram_user.user:
+        # Синхронная функция для проверки наличия связанного пользователя
+        def check_user():
+            return telegram_user.user is not None
+
+        # Обертываем синхронную функцию в sync_to_async
+        has_user = await sync_to_async(check_user)()
+
+        if has_user:
             await message.answer('Ваш аккаунт уже привязан к профилю на сайте.')
             return
 
@@ -236,10 +259,11 @@ async def cmd_register(message: Message):
         verification_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
         telegram_user.verification_code = verification_code
 
-        # Сохраняем изменения
+        # Синхронная функция для сохранения пользователя
         def save_user():
             telegram_user.save()
 
+        # Обертываем синхронную функцию в sync_to_async
         await sync_to_async(save_user)()
 
         await message.answer(
@@ -258,56 +282,65 @@ async def cmd_orders(message: Message):
     try:
         telegram_id = message.from_user.id
 
-        # Проверяем, привязан ли пользователь к аккаунту
-        try:
-            # Получаем пользователя Telegram с использованием sync_to_async
-            get_telegram_user = sync_to_async(TelegramUser.objects.get)
-            telegram_user = await get_telegram_user(telegram_id=telegram_id)
+        # Синхронная функция для получения пользователя Telegram
+        def get_telegram_user():
+            try:
+                return TelegramUser.objects.get(telegram_id=telegram_id)
+            except TelegramUser.DoesNotExist:
+                return None
 
-            if not telegram_user.user:
-                await message.answer(
-                    'Для просмотра заказов необходимо привязать ваш Telegram к аккаунту на сайте.\n'
-                    'Используйте команду /register'
-                )
-                return
+        # Обертываем синхронную функцию в sync_to_async
+        telegram_user = await sync_to_async(get_telegram_user)()
 
-            # Получаем последние заказы пользователя с использованием sync_to_async
-            async def get_orders():
-                return list(Order.objects.filter(user=telegram_user.user).order_by('-created_at')[:5])
+        # Синхронная функция для проверки наличия связанного пользователя
+        def check_user():
+            return telegram_user.user is not None
 
-            orders = await sync_to_async(get_orders)()
+        # Обертываем синхронную функцию в sync_to_async
+        has_user = await sync_to_async(check_user)()
 
-            if not orders:
-                await message.answer('У вас пока нет заказов.')
-                return
-
-            # Формируем сообщение со списком заказов
-            response = '<b>Ваши последние заказы:</b>\n\n'
-
-            # Получаем словарь статусов
-            async def get_status_choices():
-                return dict(Order._meta.get_field('status').choices)
-
-            status_choices = await sync_to_async(get_status_choices)()
-
-            for order in orders:
-                status_display = status_choices.get(order.status, order.status)
-                response += (
-                    f'<b>Заказ #{order.id}</b>\n'
-                    f'Дата: {order.created_at.strftime("%Y-%m-%d %H:%M")}\n'
-                    f'Статус: {status_display}\n'
-                    f'Сумма: {order.total_price} руб.\n\n'
-                )
-
-            await message.answer(response, parse_mode="HTML")
-
-        except TelegramUser.DoesNotExist:
+        if not telegram_user or not has_user:
             await message.answer(
-                'Вы еще не зарегистрированы в боте. Используйте команду /start для начала работы.'
+                'Для просмотра заказов необходимо привязать ваш Telegram к аккаунту на сайте.\n'
+                'Используйте команду /register'
             )
+            return
+
+        # Синхронная функция для получения заказов
+        def get_orders():
+            return list(Order.objects.filter(user=telegram_user.user).order_by('-created_at')[:10])
+
+        # Обертываем синхронную функцию в sync_to_async
+        orders = await sync_to_async(get_orders)()
+
+        if not orders:
+            await message.answer('У вас пока нет заказов.')
+            return
+
+        # Формируем сообщение со списком заказов
+        response = '<b>Ваши последние 10 заказов:</b>\n\n'
+
+        # Синхронная функция для получения статусов
+        def get_status_choices():
+            return dict(Order._meta.get_field('status').choices)
+
+        # Обертываем синхронную функцию в sync_to_async
+        status_choices = await sync_to_async(get_status_choices)()
+
+        for order in orders:
+            status_display = status_choices.get(order.status, 'Неизвестный статус')
+            response += (
+                f"📦 Заказ #{order.id}\n"
+                f"📅 Дата: {order.created_at.strftime('%d.%m.%Y %H:%M')}\n"
+                f"📦 Статус: {status_display}\n"
+                f"💰 Сумма: {order.total_price} руб.\n\n"
+            )
+
+        await message.answer(response, parse_mode="HTML")
     except Exception as e:
         logging.error(f"Ошибка в обработчике /orders: {e}", exc_info=True)
-        await message.answer("Произошла ошибка при получении списка заказов")
+        await message.answer("Произошла ошибка при обработке команды")
+
 
 
 async def check_notifications():
@@ -368,15 +401,3 @@ if __name__ == "__main__":
         logging.info("Бот остановлен пользователем")
     except Exception as e:
         logging.error(f"Критическая ошибка: {e}", exc_info=True)
-
-# # Главная функция запуска бота
-# async def main():
-#     # Запускаем задачу обработки уведомлений в фоновом режиме
-#     asyncio.create_task(process_notifications())
-#
-#     # Запускаем бота
-#     await dp.start_polling(bot)
-#
-#
-# if __name__ == "__main__":
-#     asyncio.run(main())

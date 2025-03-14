@@ -12,6 +12,7 @@ def index(request):
 
 def catalog(request):
     products_list = Product.objects.all()
+    products_list = Product.objects.all().order_by('name')  # Упорядочиваем по имени
 
     search_query = request.GET.get('search', '')
     if search_query:

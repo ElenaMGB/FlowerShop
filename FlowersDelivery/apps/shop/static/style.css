@@ -182,7 +182,7 @@ nav a:hover {
 }
 
 .product-image {
-  height: 250px;
+  height: 180px;
   width: 100%;
   object-fit: cover;
 }
@@ -255,7 +255,7 @@ nav a:hover {
 }
 
 .cart-item-image {
-  width: 80px;
+  width: 88px;
   height: 80px;
   object-fit: cover;
   border-radius: 4px;
